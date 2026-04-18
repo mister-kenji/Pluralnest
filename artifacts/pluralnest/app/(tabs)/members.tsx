@@ -30,6 +30,8 @@ export default function MembersScreen() {
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newName, setNewName] = useState("");
   const [newGroupName, setNewGroupName] = useState("");
+  const [addingSubgroupToId, setAddingSubgroupToId] = useState<string | null>(null);
+  const [newSubgroupName, setNewSubgroupName] = useState("");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -76,6 +78,7 @@ export default function MembersScreen() {
       pronouns: "",
       role: "",
       color: MEMBER_COLORS[data.members.length % MEMBER_COLORS.length],
+      avatarShape: "circle",
       description: "",
       customFields: [],
       relationships: [],
@@ -106,6 +109,32 @@ export default function MembersScreen() {
     updateGroups([...data.groups, group]);
     setNewGroupName("");
     setShowAddGroup(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const addSubgroup = (parentId: string) => {
+    if (!newSubgroupName.trim()) return;
+    const subgroup: Group = {
+      id: genId(),
+      name: newSubgroupName.trim(),
+      color: data.groups.find((g) => g.id === parentId)?.color ?? colors.primary,
+      memberIds: [],
+      subGroupIds: [],
+      parentGroupId: parentId,
+      showMembersInRoot: false,
+      description: "",
+      createdAt: Date.now(),
+    };
+    const updated = data.groups.map((g) =>
+      g.id === parentId
+        ? { ...g, subGroupIds: [...g.subGroupIds, subgroup.id] }
+        : g,
+    );
+    updateGroups([...updated, subgroup]);
+    setNewSubgroupName("");
+    setAddingSubgroupToId(null);
+    // Auto-expand the parent
+    setExpandedGroups((prev) => new Set([...prev, parentId]));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
@@ -156,29 +185,86 @@ export default function MembersScreen() {
     );
   };
 
-  const renderGroup = (group: Group) => {
+  const renderGroup = (group: Group, depth = 0) => {
     const isExpanded = expandedGroups.has(group.id);
     const groupMembers = filteredMembers.filter((m) => group.memberIds.includes(m.id));
+    const subGroups = data.groups.filter((g) => group.subGroupIds.includes(g.id));
+    const totalCount = groupMembers.length + subGroups.reduce((acc, sg) => acc + sg.memberIds.length, 0);
+    const indent = depth * 14;
+    const isAddingHere = addingSubgroupToId === group.id;
+
     return (
-      <View key={group.id} style={styles.groupWrap}>
+      <View key={group.id} style={[styles.groupWrap, depth > 0 && { marginLeft: indent }]}>
         <TouchableOpacity
-          style={[styles.groupHeader, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+          style={[styles.groupHeader, {
+            backgroundColor: depth > 0 ? colors.background : colors.secondary,
+            borderColor: depth > 0 ? group.color + "55" : colors.border,
+            borderLeftWidth: depth > 0 ? 3 : 1,
+            borderLeftColor: depth > 0 ? group.color : colors.border,
+          }]}
           onPress={() => toggleGroup(group.id)}
         >
           <View style={[styles.groupDot, { backgroundColor: group.color }]} />
           <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
+          {subGroups.length > 0 && (
+            <Text style={[styles.subgroupBadge, { color: colors.mutedForeground }]}>
+              {subGroups.length} sub
+            </Text>
+          )}
           <Text style={[styles.groupCount, { color: colors.mutedForeground }]}>
-            {groupMembers.length}
+            {totalCount}
           </Text>
+          <TouchableOpacity
+            style={styles.addSubgroupBtn}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              setAddingSubgroupToId(isAddingHere ? null : group.id);
+              setNewSubgroupName("");
+              // expand the group so the input is visible
+              setExpandedGroups((prev) => new Set([...prev, group.id]));
+            }}
+          >
+            <Feather name="folder-plus" size={14} color={colors.mutedForeground} />
+          </TouchableOpacity>
           <Feather
             name={isExpanded ? "chevron-up" : "chevron-down"}
             size={16}
             color={colors.mutedForeground}
           />
         </TouchableOpacity>
+
         {isExpanded && (
           <View style={styles.groupMembers}>
-            {groupMembers.length === 0 ? (
+            {/* Add subgroup input */}
+            {isAddingHere && (
+              <View style={[styles.subgroupInput, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="folder" size={14} color={group.color} />
+                <TextInput
+                  style={[styles.subgroupInputText, { color: colors.foreground }]}
+                  placeholder="Subgroup name..."
+                  placeholderTextColor={colors.mutedForeground}
+                  value={newSubgroupName}
+                  onChangeText={setNewSubgroupName}
+                  autoFocus
+                  onSubmitEditing={() => addSubgroup(group.id)}
+                />
+                <TouchableOpacity
+                  style={[styles.subgroupConfirm, { backgroundColor: group.color }]}
+                  onPress={() => addSubgroup(group.id)}
+                >
+                  <Feather name="plus" size={14} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setAddingSubgroupToId(null)}>
+                  <Feather name="x" size={14} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Subgroups (recursive) */}
+            {subGroups.map((sg) => renderGroup(sg, depth + 1))}
+
+            {/* Members */}
+            {groupMembers.length === 0 && subGroups.length === 0 && !isAddingHere ? (
               <Text style={[styles.emptyGroupText, { color: colors.mutedForeground }]}>
                 No members in this group
               </Text>
@@ -458,7 +544,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_400Regular",
   },
-  groupMembers: { paddingLeft: 16, paddingTop: 6 },
+  groupMembers: { paddingLeft: 12, paddingTop: 6 },
+  subgroupBadge: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginRight: -4,
+  },
+  addSubgroupBtn: {
+    padding: 4,
+  },
+  subgroupInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  subgroupInputText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  subgroupConfirm: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   emptyGroupText: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
