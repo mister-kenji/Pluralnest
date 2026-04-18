@@ -22,12 +22,15 @@ export type Relationship = {
   type: string;
 };
 
+export type AvatarShape = "circle" | "square" | "diamond" | "heart";
+
 export type Member = {
   id: string;
   name: string;
   pronouns: string;
   role: string;
   color: string;
+  avatarShape: AvatarShape;
   profileImage?: string;
   description: string;
   customFields: CustomField[];

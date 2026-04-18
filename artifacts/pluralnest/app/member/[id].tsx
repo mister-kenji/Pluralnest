@@ -98,7 +98,8 @@ export default function MemberProfileScreen() {
             name={member.name}
             color={member.color}
             profileImage={member.profileImage}
-            size={88}
+            size={120}
+            shape={member.avatarShape}
             style={styles.avatar}
           />
 

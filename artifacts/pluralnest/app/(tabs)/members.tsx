@@ -126,6 +126,7 @@ export default function MembersScreen() {
           color={member.color}
           profileImage={member.profileImage}
           size={44}
+          shape={member.avatarShape}
         />
         <View style={styles.memberInfo}>
           <View style={styles.memberNameRow}>

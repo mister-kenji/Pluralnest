@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
-import { useStorage, Member, CustomField, Relationship } from "@/context/StorageContext";
+import { useStorage, Member, CustomField, Relationship, AvatarShape } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
 
@@ -80,6 +80,7 @@ export default function EditMemberScreen() {
     existingMember?.relationships ?? [],
   );
   const [isArchived, setIsArchived] = useState(existingMember?.isArchived ?? false);
+  const [avatarShape, setAvatarShape] = useState<AvatarShape>(existingMember?.avatarShape ?? "circle");
   const [showRelPicker, setShowRelPicker] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -152,6 +153,7 @@ export default function EditMemberScreen() {
       pronouns: pronouns.trim(),
       role: role.trim(),
       color,
+      avatarShape,
       profileImage: profileImage || undefined,
       description: description.trim(),
       customFields,
@@ -223,7 +225,7 @@ export default function EditMemberScreen() {
       </View>
 
       <TouchableOpacity style={styles.avatarPicker} onPress={pickImage}>
-        <MemberAvatar name={name || "?"} color={color} profileImage={profileImage} size={80} />
+        <MemberAvatar name={name || "?"} color={color} profileImage={profileImage} size={80} shape={avatarShape} />
         <View style={[styles.avatarOverlay, { backgroundColor: colors.card + "bb" }]}>
           <Feather name="camera" size={18} color={colors.foreground} />
         </View>
@@ -305,6 +307,40 @@ export default function EditMemberScreen() {
           />
           <Text style={[styles.hexLabel, { color: colors.mutedForeground }]}>Custom hex</Text>
         </View>
+      </View>
+
+      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Avatar Shape</Text>
+      <View style={[styles.shapeRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {(["circle", "square", "diamond", "heart"] as AvatarShape[]).map((s) => {
+          const labels: Record<AvatarShape, string> = {
+            circle: "Circle", square: "Square", diamond: "Diamond", heart: "Heart",
+          };
+          const selected = avatarShape === s;
+          return (
+            <TouchableOpacity
+              key={s}
+              style={[
+                styles.shapeOption,
+                {
+                  borderColor: selected ? color : colors.border,
+                  backgroundColor: selected ? color + "22" : colors.secondary,
+                },
+              ]}
+              onPress={() => setAvatarShape(s)}
+            >
+              <MemberAvatar
+                name={name || "?"}
+                color={color}
+                profileImage={profileImage}
+                size={44}
+                shape={s}
+              />
+              <Text style={[styles.shapeLabel, { color: selected ? color : colors.mutedForeground }]}>
+                {labels[s]}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Tags</Text>
@@ -555,6 +591,24 @@ const styles = StyleSheet.create({
     width: 110,
   },
   hexLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  shapeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  shapeOption: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  shapeLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
   tagWrap: { flexDirection: "row", flexWrap: "wrap", marginBottom: 8 },
   tagInputRow: { flexDirection: "row", gap: 8 },
   tagInput: {
