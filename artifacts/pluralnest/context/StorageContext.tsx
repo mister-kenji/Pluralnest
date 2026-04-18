@@ -173,7 +173,7 @@ type AppData = {
 };
 
 const defaultSettings: AppSettings = {
-  accentColor: "#a89de8",
+  accentColor: "#aaaaaa",
   screenLockEnabled: false,
   screenLockCode: "",
   panicCloseEnabled: false,

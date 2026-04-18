@@ -20,16 +20,16 @@ import { useLock } from "@/context/LockContext";
 import { useColors } from "@/hooks/useColors";
 
 const ACCENT_COLORS = [
-  "#a89de8",
-  "#e8a0bf",
-  "#a0d9e8",
-  "#a0e8b2",
-  "#e8d0a0",
-  "#e8a0a0",
-  "#c0a0e8",
-  "#a0e8d4",
-  "#e8c0a0",
-  "#b0b0e8",
+  "#ffffff",
+  "#dddddd",
+  "#cccccc",
+  "#bbbbbb",
+  "#aaaaaa",
+  "#999999",
+  "#888888",
+  "#777777",
+  "#666666",
+  "#555555",
 ];
 
 export default function SettingsScreen() {
