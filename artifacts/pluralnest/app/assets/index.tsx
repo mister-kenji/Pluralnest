@@ -172,20 +172,22 @@ export default function AssetsScreen() {
             key={asset.id}
             style={[styles.assetRow, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => copyToken(asset.name)}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <Image source={{ uri: asset.uri }} contentFit="cover" style={styles.assetThumb} />
-            <View style={styles.assetInfo}>
-              <Text style={[styles.assetName, { color: colors.foreground }]}>{asset.name}</Text>
-              <Text style={[styles.assetToken, { color: colors.primary }]}>(@{asset.name})</Text>
-              <Text style={[styles.assetHint, { color: colors.mutedForeground }]}>Tap to copy token</Text>
+            <Image source={{ uri: asset.uri }} contentFit="cover" style={styles.assetThumbFull} />
+            <View style={[styles.assetRowFooter, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+              <View style={styles.assetInfo}>
+                <Text style={[styles.assetName, { color: colors.foreground }]}>{asset.name}</Text>
+                <Text style={[styles.assetToken, { color: colors.primary }]}>(@{asset.name})</Text>
+                <Text style={[styles.assetHint, { color: colors.mutedForeground }]}>Tap to copy token</Text>
+              </View>
+              <TouchableOpacity
+                hitSlop={10}
+                onPress={() => deleteAsset(asset)}
+              >
+                <Feather name="trash-2" size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              hitSlop={10}
-              onPress={() => deleteAsset(asset)}
-            >
-              <Feather name="trash-2" size={16} color={colors.mutedForeground} />
-            </TouchableOpacity>
           </TouchableOpacity>
         ))
       )}
@@ -245,13 +247,17 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   assetRow: {
-    flexDirection: "row",
-    alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  assetThumbFull: { width: "100%", height: 160 },
+  assetRowFooter: {
+    flexDirection: "row",
+    alignItems: "center",
     padding: 10,
-    gap: 12,
-    marginBottom: 10,
+    gap: 10,
   },
   assetThumb: { width: 64, height: 64, borderRadius: 8 },
   assetInfo: { flex: 1, gap: 2 },

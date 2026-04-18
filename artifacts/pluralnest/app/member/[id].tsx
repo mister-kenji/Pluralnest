@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Markdown from "react-native-markdown-display";
@@ -29,6 +30,7 @@ export default function MemberProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { data } = useStorage();
   const [activeTab, setActiveTab] = useState<Tab>("profile");
 
@@ -88,13 +90,14 @@ export default function MemberProfileScreen() {
     link: { color: colors.primary },
   };
 
+  const mdImgWidth = screenWidth - 64; // card has 16px horizontal padding + 16px page padding each side
   const mdImageRule = {
     image: (node: any) => (
       <Image
         key={node.key}
         source={{ uri: node.attributes.src }}
-        contentFit="contain"
-        style={{ width: "100%", height: 220, borderRadius: 8, marginVertical: 4 }}
+        contentFit="cover"
+        style={{ width: mdImgWidth, height: Math.round(mdImgWidth * 0.6), borderRadius: 8, marginVertical: 6 }}
       />
     ),
   };
