@@ -215,7 +215,7 @@ export default function MemberProfileScreen() {
               </View>
             ) : (
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Details</Text>
+                <Text style={[styles.cardTitle, { color: colors.mutedForeground, textAlign: "center" }]}>Details</Text>
                 {(data.settings.customGlobalFields ?? []).map((gf, idx, arr) => {
                   const fv = member.customFields.find((c) => c.fieldId === gf.id);
                   return (
@@ -261,7 +261,7 @@ export default function MemberProfileScreen() {
             {memberJournals.length > 0 ? (
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardHeader}>
-                  <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Journals</Text>
+                  <Text style={[styles.cardTitle, { color: colors.mutedForeground, textAlign: "center" }]}>Journals</Text>
                   <TouchableOpacity onPress={() => router.push(`/journal/member/${member.id}`)}>
                     <Text style={[styles.seeAll, { color: colors.primary }]}>Open</Text>
                   </TouchableOpacity>
@@ -291,7 +291,7 @@ export default function MemberProfileScreen() {
 
             {memberForums.length > 0 && (
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Forum Posts</Text>
+                <Text style={[styles.cardTitle, { color: colors.mutedForeground, textAlign: "center" }]}>Forum Posts</Text>
                 {memberForums.map((f) => (
                   <TouchableOpacity
                     key={f.id}
