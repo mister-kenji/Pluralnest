@@ -75,6 +75,7 @@ export default function EditMemberScreen() {
   const [description, setDescription] = useState(existingMember?.description ?? "");
   const [profileImage, setProfileImage] = useState(existingMember?.profileImage ?? "");
   const [bannerImage, setBannerImage] = useState(existingMember?.bannerImage ?? "");
+  const [bannerColor, setBannerColor] = useState(existingMember?.bannerColor ?? "");
   const [tags, setTags] = useState<string[]>(existingMember?.tags ?? []);
   const [newTag, setNewTag] = useState("");
   const globalFields = data.settings.customGlobalFields ?? [];
@@ -162,6 +163,7 @@ export default function EditMemberScreen() {
       avatarShape,
       profileImage: profileImage || undefined,
       bannerImage: bannerImage || undefined,
+      bannerColor: bannerColor || undefined,
       description: description.trim(),
       customFields: globalFields
         .map((f) => ({ fieldId: f.id, value: fieldValues[f.id] ?? "" }))
@@ -235,16 +237,28 @@ export default function EditMemberScreen() {
 
       {/* Banner picker */}
       <TouchableOpacity
-        style={[styles.bannerPicker, { backgroundColor: bannerImage ? "transparent" : color + "33", borderColor: colors.border }]}
+        style={[
+          styles.bannerPicker,
+          {
+            backgroundColor: bannerImage
+              ? "transparent"
+              : bannerColor === "none"
+              ? "#3d3d3d"
+              : bannerColor
+              ? bannerColor + "cc"
+              : color + "55",
+            borderColor: colors.border,
+          },
+        ]}
         onPress={pickBannerImage}
         activeOpacity={0.8}
       >
         {bannerImage ? (
           <Image source={{ uri: bannerImage }} style={styles.bannerPreview} />
         ) : (
-          <View style={[styles.bannerEmpty, { backgroundColor: color + "33" }]}>
+          <View style={styles.bannerEmpty}>
             <Feather name="image" size={20} color={colors.mutedForeground} />
-            <Text style={[styles.bannerEmptyText, { color: colors.mutedForeground }]}>Tap to add banner</Text>
+            <Text style={[styles.bannerEmptyText, { color: colors.mutedForeground }]}>Tap to add photo</Text>
           </View>
         )}
         {bannerImage && (
@@ -256,6 +270,50 @@ export default function EditMemberScreen() {
           </TouchableOpacity>
         )}
       </TouchableOpacity>
+
+      {/* Banner color row (only visible when no image is set) */}
+      {!bannerImage && (
+        <View style={[styles.bannerColorRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.bannerColorLabel, { color: colors.mutedForeground }]}>Banner color</Text>
+          <View style={styles.bannerColorSwatches}>
+            {/* Auto = member color tint */}
+            <TouchableOpacity
+              style={[
+                styles.bannerSwatch,
+                { backgroundColor: color + "88" },
+                bannerColor === "" && styles.bannerSwatchSelected,
+              ]}
+              onPress={() => setBannerColor("")}
+            >
+              {bannerColor === "" && <Feather name="check" size={12} color="#fff" />}
+            </TouchableOpacity>
+            {/* None = grey */}
+            <TouchableOpacity
+              style={[
+                styles.bannerSwatch,
+                { backgroundColor: "#555555" },
+                bannerColor === "none" && styles.bannerSwatchSelected,
+              ]}
+              onPress={() => setBannerColor("none")}
+            >
+              {bannerColor === "none" && <Feather name="check" size={12} color="#fff" />}
+            </TouchableOpacity>
+            {MEMBER_COLORS.map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[
+                  styles.bannerSwatch,
+                  { backgroundColor: c },
+                  bannerColor === c && styles.bannerSwatchSelected,
+                ]}
+                onPress={() => setBannerColor(c)}
+              >
+                {bannerColor === c && <Feather name="check" size={12} color="#fff" />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
       <TouchableOpacity style={styles.avatarPicker} onPress={pickImage}>
         <MemberAvatar name={name || "?"} color={color} profileImage={profileImage} size={80} shape={avatarShape} />
@@ -546,6 +604,35 @@ const styles = StyleSheet.create({
   bannerEmptyText: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
+  },
+  bannerColorRow: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  bannerColorLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  bannerColorSwatches: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  bannerSwatch: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bannerSwatchSelected: {
+    borderWidth: 2,
+    borderColor: "#fff",
   },
   bannerRemove: {
     position: "absolute",

@@ -125,7 +125,20 @@ export default function MemberProfileScreen() {
               style={[styles.bannerStrip, { top: 0 }]}
             />
           ) : (
-            <View style={[styles.bannerStrip, { backgroundColor: member.color + "55", top: 0 }]} />
+            <View
+              style={[
+                styles.bannerStrip,
+                {
+                  backgroundColor:
+                    member.bannerColor === "none"
+                      ? "#3d3d3d"
+                      : member.bannerColor
+                      ? member.bannerColor + "cc"
+                      : member.color + "55",
+                  top: 0,
+                },
+              ]}
+            />
           )}
 
           <TouchableOpacity
@@ -386,7 +399,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    height: 130,
+    height: 180,
     resizeMode: "cover",
   },
   backBtn: {
