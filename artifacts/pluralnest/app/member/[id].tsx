@@ -437,7 +437,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
   },
-  aboutCard: { alignItems: "center" },
+  aboutCard: {
+    alignItems: "center",
+    alignSelf: "center",
+    minWidth: 140,
+    maxWidth: "85%",
+  },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: {
     fontSize: 11,
