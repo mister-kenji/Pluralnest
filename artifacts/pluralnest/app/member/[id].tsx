@@ -100,7 +100,7 @@ export default function MemberProfileScreen() {
       />
     ),
     fence: (node: any) => {
-      if (node.attributes.language === "center") {
+      if (node.sourceInfo === "center") {
         return (
           <Text
             key={node.key}
