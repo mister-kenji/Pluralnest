@@ -217,7 +217,7 @@ export default function SettingsScreen() {
 
       <TouchableOpacity
         style={[styles.actionRow, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 }]}
-        onPress={() => router.push("/deleted/index")}
+        onPress={() => router.push("/deleted")}
       >
         <Feather name="trash-2" size={18} color={colors.foreground} />
         <Text style={[styles.actionText, { color: colors.foreground }]}>Recently Deleted</Text>

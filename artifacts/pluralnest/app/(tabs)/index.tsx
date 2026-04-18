@@ -61,7 +61,7 @@ export default function DashboardScreen() {
     {
       icon: "map" as const,
       label: "Headspace",
-      onPress: () => router.push("/headspace/index"),
+      onPress: () => router.push("/headspace"),
       color: "#e8a0bf",
     },
     {
@@ -102,7 +102,7 @@ export default function DashboardScreen() {
             <View style={[styles.dot, { backgroundColor: "#4ade80" }]} />
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Currently Fronting</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push("/fronting/index")}>
+          <TouchableOpacity onPress={() => router.push("/fronting")}>
             <Text style={[styles.seeAll, { color: colors.primary }]}>Log</Text>
           </TouchableOpacity>
         </View>
@@ -116,7 +116,7 @@ export default function DashboardScreen() {
               style={[styles.addFrontBtn, { backgroundColor: colors.primary }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/fronting/index");
+                router.push("/fronting");
               }}
             >
               <Feather name="plus" size={16} color={colors.primaryForeground} />
@@ -156,7 +156,7 @@ export default function DashboardScreen() {
               style={[styles.addFrontInline, { borderColor: colors.border }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/fronting/index");
+                router.push("/fronting");
               }}
             >
               <Feather name="plus" size={16} color={colors.mutedForeground} />

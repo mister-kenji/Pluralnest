@@ -21,16 +21,16 @@ const menuGroups: { title: string; items: MenuItem[] }[] = [
   {
     title: "Features",
     items: [
-      { icon: "clock", label: "Fronting Log", sublabel: "Track who is fronting", route: "/fronting/index" },
-      { icon: "map", label: "Headspace", sublabel: "Document your inner world", route: "/headspace/index", featureKey: "headspace" },
-      { icon: "message-square", label: "Forums", sublabel: "Discussions & polls", route: "/forums/index", featureKey: "forums" },
-      { icon: "trash-2", label: "Recently Deleted", route: "/deleted/index", color: "#ef4444" },
+      { icon: "clock", label: "Fronting Log", sublabel: "Track who is fronting", route: "/fronting" },
+      { icon: "map", label: "Headspace", sublabel: "Document your inner world", route: "/headspace", featureKey: "headspace" },
+      { icon: "message-square", label: "Forums", sublabel: "Discussions & polls", route: "/forums", featureKey: "forums" },
+      { icon: "trash-2", label: "Recently Deleted", route: "/deleted", color: "#ef4444" },
     ],
   },
   {
     title: "System",
     items: [
-      { icon: "settings", label: "Settings", sublabel: "Customize & configure", route: "/settings/index" },
+      { icon: "settings", label: "Settings", sublabel: "Customize & configure", route: "/settings" },
       { icon: "search", label: "Search", route: "/search", featureKey: "search" },
       { icon: "download", label: "Export / Backup", route: "/settings/export" },
     ],
