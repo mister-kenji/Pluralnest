@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -11,21 +11,24 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Markdown from "react-native-markdown-display";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { FrontingBadge } from "@/components/FrontingBadge";
 import { TagChip } from "@/components/TagChip";
 import { EmptyState } from "@/components/EmptyState";
-import Markdown from "react-native-markdown-display";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
-import { formatDate, hexToRgba } from "@/utils/helpers";
+import { formatDate } from "@/utils/helpers";
+
+type Tab = "profile" | "info" | "notes";
 
 export default function MemberProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { data } = useStorage();
+  const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   const member = useMemo(() => data.members.find((m) => m.id === id), [data.members, id]);
 
@@ -38,13 +41,12 @@ export default function MemberProfileScreen() {
     () =>
       data.journalEntries
         .filter((e) => e.memberId === id)
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .slice(0, 3),
+        .sort((a, b) => b.updatedAt - a.updatedAt),
     [data.journalEntries, id],
   );
 
   const memberForums = useMemo(
-    () => data.forumPosts.filter((p) => p.memberId === id).slice(0, 3),
+    () => data.forumPosts.filter((p) => p.memberId === id),
     [data.forumPosts, id],
   );
 
@@ -67,20 +69,51 @@ export default function MemberProfileScreen() {
     );
   }
 
+  const mdStyles = {
+    body: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, textAlign: "center" as const },
+    paragraph: { textAlign: "center" as const, marginTop: 0, marginBottom: 6 },
+    strong: { fontFamily: "Inter_700Bold" },
+    em: { fontStyle: "italic" as const },
+    bullet_list: { textAlign: "center" as const },
+    ordered_list: { textAlign: "center" as const },
+    list_item: { textAlign: "center" as const },
+    heading1: { textAlign: "center" as const, fontFamily: "Inter_700Bold", fontSize: 20, marginBottom: 4 },
+    heading2: { textAlign: "center" as const, fontFamily: "Inter_700Bold", fontSize: 17, marginBottom: 4 },
+    heading3: { textAlign: "center" as const, fontFamily: "Inter_600SemiBold", fontSize: 15, marginBottom: 4 },
+    code_inline: { backgroundColor: colors.secondary, color: colors.foreground, borderRadius: 4, paddingHorizontal: 4 },
+    blockquote: { backgroundColor: colors.secondary, borderLeftColor: colors.border, paddingHorizontal: 10, borderRadius: 4 },
+    hr: { backgroundColor: colors.border, height: 1, marginVertical: 8 },
+    link: { color: colors.primary },
+  };
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "profile", label: "Profile" },
+    { key: "info", label: "Info" },
+    { key: "notes", label: "Notes" },
+  ];
+
+  const handleTabPress = (tab: Tab) => {
+    setActiveTab(tab);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleEdit = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (activeTab === "info") {
+      router.push(`/member/edit?id=${member.id}&section=info`);
+    } else {
+      router.push(`/member/edit?id=${member.id}`);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: Platform.OS === "web" ? 60 : 40,
-        }}
+        contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 80 : 50 }}
       >
-        <View
-          style={[
-            styles.banner,
-            { backgroundColor: colors.background, paddingTop: topInset + 10 },
-          ]}
-        >
+        {/* ── Banner ── */}
+        <View style={[styles.banner, { backgroundColor: colors.background, paddingTop: topInset + 10 }]}>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: colors.card + "cc" }]}
             onPress={() => router.back()}
@@ -88,12 +121,14 @@ export default function MemberProfileScreen() {
             <Feather name="arrow-left" size={20} color={colors.foreground} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.editBtn, { backgroundColor: colors.card + "cc" }]}
-            onPress={() => router.push(`/member/edit?id=${member.id}`)}
-          >
-            <Feather name="edit-2" size={18} color={colors.foreground} />
-          </TouchableOpacity>
+          {(activeTab === "profile" || activeTab === "info") && (
+            <TouchableOpacity
+              style={[styles.editBtn, { backgroundColor: colors.card + "cc" }]}
+              onPress={handleEdit}
+            >
+              <Feather name="edit-2" size={18} color={colors.foreground} />
+            </TouchableOpacity>
+          )}
 
           <MemberAvatar
             name={member.name}
@@ -106,21 +141,17 @@ export default function MemberProfileScreen() {
 
           <Text style={[styles.name, { color: colors.foreground }]}>{member.name}</Text>
           {member.pronouns ? (
-            <Text style={[styles.pronouns, { color: colors.mutedForeground }]}>
-              {member.pronouns}
-            </Text>
+            <Text style={[styles.pronouns, { color: colors.mutedForeground }]}>{member.pronouns}</Text>
           ) : null}
           {member.role ? (
             <Text style={[styles.role, { color: member.color }]}>{member.role}</Text>
           ) : null}
-
           {activeFront && (
             <View style={styles.frontingRow}>
               <View style={[styles.frontDot, { backgroundColor: "#4ade80" }]} />
               <FrontingBadge status={activeFront.status} customStatus={activeFront.customStatus} />
             </View>
           )}
-
           {member.tags.length > 0 && (
             <View style={styles.tagsRow}>
               {member.tags.map((t) => (
@@ -130,148 +161,189 @@ export default function MemberProfileScreen() {
           )}
         </View>
 
-        <View style={styles.body}>
-          {member.description ? (
-            <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
-              <Markdown
-                style={{
-                  body: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, textAlign: "center" },
-                  paragraph: { textAlign: "center", marginTop: 0, marginBottom: 6 },
-                  strong: { fontFamily: "Inter_700Bold" },
-                  em: { fontStyle: "italic" },
-                  bullet_list: { textAlign: "center" },
-                  ordered_list: { textAlign: "center" },
-                  list_item: { textAlign: "center" },
-                  heading1: { textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 20, marginBottom: 4 },
-                  heading2: { textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 17, marginBottom: 4 },
-                  heading3: { textAlign: "center", fontFamily: "Inter_600SemiBold", fontSize: 15, marginBottom: 4 },
-                  code_inline: { backgroundColor: colors.secondary, color: colors.foreground, borderRadius: 4, paddingHorizontal: 4 },
-                  blockquote: { backgroundColor: colors.secondary, borderLeftColor: colors.border, paddingHorizontal: 10, borderRadius: 4 },
-                  hr: { backgroundColor: colors.border, height: 1, marginVertical: 8 },
-                  link: { color: colors.primary },
-                }}
+        {/* ── Tab Bar ── */}
+        <View style={[styles.tabBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.tabBtn,
+                activeTab === tab.key && [styles.tabBtnActive, { borderBottomColor: colors.primary }],
+              ]}
+              onPress={() => handleTabPress(tab.key)}
+            >
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: activeTab === tab.key ? colors.primary : colors.mutedForeground },
+                ]}
               >
-                {member.description}
-              </Markdown>
-            </View>
-          ) : null}
-
-          {member.customFields.length > 0 && (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Details</Text>
-              {member.customFields.map((cf) => {
-                const globalField = data.settings.customGlobalFields?.find((g) => g.id === cf.fieldId);
-                if (!globalField) return null;
-                return (
-                  <View key={cf.fieldId} style={[styles.fieldRow, { borderTopColor: colors.border }]}>
-                    <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                      {globalField.label}
-                    </Text>
-                    <Text style={[styles.fieldValue, { color: colors.foreground }]}>
-                      {cf.value}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {relatedMembers.length > 0 && (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>
-                Relationships
+                {tab.label}
               </Text>
-              {relatedMembers.map(({ rel, m }) =>
-                m ? (
-                  <TouchableOpacity
-                    key={rel.memberId}
-                    style={[styles.relRow, { borderTopColor: colors.border }]}
-                    onPress={() => router.push(`/member/${m.id}`)}
-                  >
-                    <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={32} />
-                    <View style={styles.relInfo}>
-                      <Text style={[styles.relName, { color: colors.foreground }]}>{m.name}</Text>
-                      <Text style={[styles.relType, { color: colors.mutedForeground }]}>
-                        {rel.type}
+              {tab.key === "notes" && (memberJournals.length + memberForums.length) > 0 && (
+                <View style={[styles.tabBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.tabBadgeText, { color: colors.primaryForeground }]}>
+                    {memberJournals.length + memberForums.length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ── Profile Tab ── */}
+        {activeTab === "profile" && (
+          <View style={styles.body}>
+            {member.description ? (
+              <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
+                <Markdown style={mdStyles}>{member.description}</Markdown>
+              </View>
+            ) : (
+              <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>
+                  No description yet — tap the edit button to add one.
+                </Text>
+              </View>
+            )}
+
+            {relatedMembers.length > 0 && (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Relationships</Text>
+                {relatedMembers.map(({ rel, m }) =>
+                  m ? (
+                    <TouchableOpacity
+                      key={rel.memberId}
+                      style={[styles.relRow, { borderTopColor: colors.border }]}
+                      onPress={() => router.push(`/member/${m.id}`)}
+                    >
+                      <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={32} />
+                      <View style={styles.relInfo}>
+                        <Text style={[styles.relName, { color: colors.foreground }]}>{m.name}</Text>
+                        <Text style={[styles.relType, { color: colors.mutedForeground }]}>{rel.type}</Text>
+                      </View>
+                      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                  ) : null,
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Info Tab ── */}
+        {activeTab === "info" && (
+          <View style={styles.body}>
+            {(data.settings.customGlobalFields ?? []).length === 0 ? (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>
+                  No custom fields defined yet. Go to Settings → Custom Fields to create some.
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Details</Text>
+                {(data.settings.customGlobalFields ?? []).map((gf, idx, arr) => {
+                  const fv = member.customFields.find((c) => c.fieldId === gf.id);
+                  return (
+                    <View
+                      key={gf.id}
+                      style={[
+                        styles.fieldRow,
+                        idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+                      ]}
+                    >
+                      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{gf.label}</Text>
+                      <Text style={[styles.fieldValue, { color: fv?.value ? colors.foreground : colors.mutedForeground }]}>
+                        {fv?.value || "—"}
                       </Text>
                     </View>
-                    <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                ) : null,
-              )}
-            </View>
-          )}
-
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => router.push(`/journal/member/${member.id}`)}
-            >
-              <Feather name="book" size={18} color={colors.primary} />
-              <Text style={[styles.actionLabel, { color: colors.foreground }]}>Journal</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => router.push(`/forums/create?memberId=${member.id}`)}
-            >
-              <Feather name="message-square" size={18} color={colors.primary} />
-              <Text style={[styles.actionLabel, { color: colors.foreground }]}>New Forum</Text>
-            </TouchableOpacity>
-          </View>
-
-          {memberJournals.length > 0 && (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.cardHeader}>
-                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Journals</Text>
-                <TouchableOpacity onPress={() => router.push(`/journal/member/${member.id}`)}>
-                  <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
-                </TouchableOpacity>
+                  );
+                })}
               </View>
-              {memberJournals.map((j) => (
-                <TouchableOpacity
-                  key={j.id}
-                  style={[styles.miniEntry, { borderTopColor: colors.border }]}
-                  onPress={() => router.push(`/journal/${j.id}`)}
-                >
-                  <Text style={[styles.miniTitle, { color: colors.foreground }]} numberOfLines={1}>
-                    {j.title || "Untitled"}
-                  </Text>
-                  <Text style={[styles.miniDate, { color: colors.mutedForeground }]}>
-                    {formatDate(j.updatedAt)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+            )}
+          </View>
+        )}
 
-          {memberForums.length > 0 && (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Forums</Text>
-              {memberForums.map((f) => (
-                <TouchableOpacity
-                  key={f.id}
-                  style={[styles.miniEntry, { borderTopColor: colors.border }]}
-                  onPress={() => router.push(`/forums/${f.id}`)}
-                >
-                  <View style={styles.miniForumRow}>
-                    <Feather
-                      name={f.type === "poll" ? "bar-chart-2" : "message-square"}
-                      size={14}
-                      color={colors.primary}
-                    />
-                    <Text style={[styles.miniTitle, { color: colors.foreground }]} numberOfLines={1}>
-                      {f.title}
-                    </Text>
-                  </View>
-                  <Text style={[styles.miniDate, { color: colors.mutedForeground }]}>
-                    {f.replies.length} replies
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* ── Notes Tab ── */}
+        {activeTab === "notes" && (
+          <View style={styles.body}>
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push(`/journal/member/${member.id}`)}
+              >
+                <Feather name="book" size={18} color={colors.primary} />
+                <Text style={[styles.actionLabel, { color: colors.foreground }]}>All Journals</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push(`/forums/create?memberId=${member.id}`)}
+              >
+                <Feather name="message-square" size={18} color={colors.primary} />
+                <Text style={[styles.actionLabel, { color: colors.foreground }]}>New Forum</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
+
+            {memberJournals.length > 0 ? (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.cardHeader}>
+                  <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Journals</Text>
+                  <TouchableOpacity onPress={() => router.push(`/journal/member/${member.id}`)}>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>Open</Text>
+                  </TouchableOpacity>
+                </View>
+                {memberJournals.map((j) => (
+                  <TouchableOpacity
+                    key={j.id}
+                    style={[styles.miniEntry, { borderTopColor: colors.border }]}
+                    onPress={() => router.push(`/journal/${j.id}`)}
+                  >
+                    <Text style={[styles.miniTitle, { color: colors.foreground }]} numberOfLines={1}>
+                      {j.title || "Untitled"}
+                    </Text>
+                    <Text style={[styles.miniDate, { color: colors.mutedForeground }]}>
+                      {formatDate(j.updatedAt)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>
+                  No journal entries yet.
+                </Text>
+              </View>
+            )}
+
+            {memberForums.length > 0 && (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Forum Posts</Text>
+                {memberForums.map((f) => (
+                  <TouchableOpacity
+                    key={f.id}
+                    style={[styles.miniEntry, { borderTopColor: colors.border }]}
+                    onPress={() => router.push(`/forums/${f.id}`)}
+                  >
+                    <View style={styles.miniForumRow}>
+                      <Feather
+                        name={f.type === "poll" ? "bar-chart-2" : "message-square"}
+                        size={14}
+                        color={colors.primary}
+                      />
+                      <Text style={[styles.miniTitle, { color: colors.foreground }]} numberOfLines={1}>
+                        {f.title}
+                      </Text>
+                    </View>
+                    <Text style={[styles.miniDate, { color: colors.mutedForeground }]}>
+                      {f.replies.length} replies
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -281,7 +353,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   banner: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 20,
     alignItems: "center",
   },
   backBtn: {
@@ -311,13 +383,50 @@ const styles = StyleSheet.create({
   frontingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
   frontDot: { width: 8, height: 8, borderRadius: 4 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 8, gap: 4 },
+
+  tabBar: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    marginHorizontal: 0,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+    gap: 6,
+  },
+  tabBtnActive: {
+    borderBottomWidth: 2,
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
+  },
+
   body: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
   card: {
     borderRadius: 14,
     borderWidth: 1,
     padding: 14,
-    marginBottom: 4,
   },
+  aboutCard: { alignItems: "center" },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: {
     fontSize: 11,
@@ -327,14 +436,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   seeAll: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 10 },
-  aboutCard: {
-    alignItems: "center",
+  emptyTabText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 8,
   },
   fieldRow: {
     flexDirection: "row",
-    paddingTop: 8,
-    marginTop: 8,
-    borderTopWidth: 1,
+    paddingTop: 10,
+    marginTop: 10,
     gap: 12,
   },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
