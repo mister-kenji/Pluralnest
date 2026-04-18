@@ -489,10 +489,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   aboutCard: {
-    alignItems: "center",
-    alignSelf: "center",
-    minWidth: 140,
-    maxWidth: "85%",
+    alignSelf: "stretch",
   },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: {
