@@ -77,7 +77,7 @@ export default function MemberProfileScreen() {
         <View
           style={[
             styles.banner,
-            { backgroundColor: hexToRgba(member.color, 0.15), paddingTop: topInset + 10 },
+            { backgroundColor: colors.background, paddingTop: topInset + 10 },
           ]}
         >
           <TouchableOpacity
