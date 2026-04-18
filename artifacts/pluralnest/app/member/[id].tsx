@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -116,7 +117,17 @@ export default function MemberProfileScreen() {
         contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
       >
         {/* ── Banner ── */}
-        <View style={[styles.banner, { backgroundColor: colors.background, paddingTop: topInset + 10 }]}>
+        <View style={[styles.banner, { paddingTop: topInset + 10 }]}>
+          {/* Banner image or color strip */}
+          {member.bannerImage ? (
+            <Image
+              source={{ uri: member.bannerImage }}
+              style={[styles.bannerStrip, { top: 0 }]}
+            />
+          ) : (
+            <View style={[styles.bannerStrip, { backgroundColor: member.color + "55", top: 0 }]} />
+          )}
+
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: colors.card + "cc" }]}
             onPress={() => router.back()}
@@ -368,6 +379,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+  },
+  bannerStrip: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 130,
+    resizeMode: "cover",
   },
   backBtn: {
     position: "absolute",

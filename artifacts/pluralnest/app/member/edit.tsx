@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -73,6 +74,7 @@ export default function EditMemberScreen() {
   const [color, setColor] = useState(existingMember?.color ?? MEMBER_COLORS[0]);
   const [description, setDescription] = useState(existingMember?.description ?? "");
   const [profileImage, setProfileImage] = useState(existingMember?.profileImage ?? "");
+  const [bannerImage, setBannerImage] = useState(existingMember?.bannerImage ?? "");
   const [tags, setTags] = useState<string[]>(existingMember?.tags ?? []);
   const [newTag, setNewTag] = useState("");
   const globalFields = data.settings.customGlobalFields ?? [];
@@ -102,6 +104,18 @@ export default function EditMemberScreen() {
     });
     if (!result.canceled && result.assets[0]) {
       setProfileImage(result.assets[0].uri);
+    }
+  };
+
+  const pickBannerImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setBannerImage(result.assets[0].uri);
     }
   };
 
@@ -147,6 +161,7 @@ export default function EditMemberScreen() {
       color,
       avatarShape,
       profileImage: profileImage || undefined,
+      bannerImage: bannerImage || undefined,
       description: description.trim(),
       customFields: globalFields
         .map((f) => ({ fieldId: f.id, value: fieldValues[f.id] ?? "" }))
@@ -217,6 +232,30 @@ export default function EditMemberScreen() {
           <Text style={[styles.saveBtnText, { color: colors.primaryForeground }]}>Save</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Banner picker */}
+      <TouchableOpacity
+        style={[styles.bannerPicker, { backgroundColor: bannerImage ? "transparent" : color + "33", borderColor: colors.border }]}
+        onPress={pickBannerImage}
+        activeOpacity={0.8}
+      >
+        {bannerImage ? (
+          <Image source={{ uri: bannerImage }} style={styles.bannerPreview} />
+        ) : (
+          <View style={[styles.bannerEmpty, { backgroundColor: color + "33" }]}>
+            <Feather name="image" size={20} color={colors.mutedForeground} />
+            <Text style={[styles.bannerEmptyText, { color: colors.mutedForeground }]}>Tap to add banner</Text>
+          </View>
+        )}
+        {bannerImage && (
+          <TouchableOpacity
+            style={[styles.bannerRemove, { backgroundColor: colors.card + "cc" }]}
+            onPress={() => setBannerImage("")}
+          >
+            <Feather name="x" size={14} color={colors.foreground} />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.avatarPicker} onPress={pickImage}>
         <MemberAvatar name={name || "?"} color={color} profileImage={profileImage} size={80} shape={avatarShape} />
@@ -484,6 +523,40 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   saveBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  bannerPicker: {
+    width: "100%",
+    height: 100,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  bannerPreview: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  bannerEmpty: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  bannerEmptyText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  bannerRemove: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   avatarPicker: {
     alignSelf: "center",
     marginBottom: 24,

@@ -36,6 +36,7 @@ export type Member = {
   color: string;
   avatarShape: AvatarShape;
   profileImage?: string;
+  bannerImage?: string;
   description: string;
   customFields: CustomField[];
   relationships: Relationship[];
