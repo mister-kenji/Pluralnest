@@ -90,15 +90,18 @@ export default function MemberProfileScreen() {
     link: { color: colors.primary },
   };
 
-  const mdImgWidth = screenWidth - 64; // card has 16px horizontal padding + 16px page padding each side
   const mdImageRule = {
     image: (node: any) => (
-      <Image
+      <View
         key={node.key}
-        source={{ uri: node.attributes.src }}
-        contentFit="cover"
-        style={{ width: mdImgWidth, height: Math.round(mdImgWidth * 0.45), borderRadius: 8, marginVertical: 6 }}
-      />
+        style={{ alignSelf: "stretch", height: Math.round((screenWidth - 96) * 0.55), borderRadius: 8, overflow: "hidden", marginVertical: 6 }}
+      >
+        <Image
+          source={{ uri: node.attributes.src }}
+          contentFit="cover"
+          style={{ width: "100%", height: "100%" }}
+        />
+      </View>
     ),
   };
 
