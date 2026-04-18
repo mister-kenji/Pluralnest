@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "sEuGVv5L2Pj8TX3N-4j9L"
+uri = "file://artifacts/pluralnest/assets/images/icon.png"
+type = "image"
+title = "pluralnest app icon"
