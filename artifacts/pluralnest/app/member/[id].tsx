@@ -204,27 +204,6 @@ export default function MemberProfileScreen() {
               </View>
             )}
 
-            {relatedMembers.length > 0 && (
-              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Relationships</Text>
-                {relatedMembers.map(({ rel, m }) =>
-                  m ? (
-                    <TouchableOpacity
-                      key={rel.memberId}
-                      style={[styles.relRow, { borderTopColor: colors.border }]}
-                      onPress={() => router.push(`/member/${m.id}`)}
-                    >
-                      <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={32} />
-                      <View style={styles.relInfo}>
-                        <Text style={[styles.relName, { color: colors.foreground }]}>{m.name}</Text>
-                        <Text style={[styles.relType, { color: colors.mutedForeground }]}>{rel.type}</Text>
-                      </View>
-                      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-                    </TouchableOpacity>
-                  ) : null,
-                )}
-              </View>
-            )}
           </View>
         )}
 
@@ -257,6 +236,28 @@ export default function MemberProfileScreen() {
                     </View>
                   );
                 })}
+              </View>
+            )}
+
+            {relatedMembers.length > 0 && (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Relationships</Text>
+                {relatedMembers.map(({ rel, m }) =>
+                  m ? (
+                    <TouchableOpacity
+                      key={rel.memberId}
+                      style={[styles.relRow, { borderTopColor: colors.border }]}
+                      onPress={() => router.push(`/member/${m.id}`)}
+                    >
+                      <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={32} />
+                      <View style={styles.relInfo}>
+                        <Text style={[styles.relName, { color: colors.foreground }]}>{m.name}</Text>
+                        <Text style={[styles.relType, { color: colors.mutedForeground }]}>{rel.type}</Text>
+                      </View>
+                      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                  ) : null,
+                )}
               </View>
             )}
           </View>
