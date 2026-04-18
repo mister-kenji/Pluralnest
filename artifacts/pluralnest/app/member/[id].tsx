@@ -106,11 +106,14 @@ export default function MemberProfileScreen() {
     }
   };
 
+  const bottomInset = Platform.OS === "web" ? 0 : insets.bottom;
+  const tabBarHeight = 56 + bottomInset;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 80 : 50 }}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
       >
         {/* ── Banner ── */}
         <View style={[styles.banner, { backgroundColor: colors.background, paddingTop: topInset + 10 }]}>
@@ -159,36 +162,6 @@ export default function MemberProfileScreen() {
               ))}
             </View>
           )}
-        </View>
-
-        {/* ── Tab Bar ── */}
-        <View style={[styles.tabBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[
-                styles.tabBtn,
-                activeTab === tab.key && [styles.tabBtnActive, { borderBottomColor: colors.primary }],
-              ]}
-              onPress={() => handleTabPress(tab.key)}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  { color: activeTab === tab.key ? colors.primary : colors.mutedForeground },
-                ]}
-              >
-                {tab.label}
-              </Text>
-              {tab.key === "notes" && (memberJournals.length + memberForums.length) > 0 && (
-                <View style={[styles.tabBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.tabBadgeText, { color: colors.primaryForeground }]}>
-                    {memberJournals.length + memberForums.length}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
         </View>
 
         {/* ── Profile Tab ── */}
@@ -345,6 +318,46 @@ export default function MemberProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Tab Bar (pinned bottom) ── */}
+      <View
+        style={[
+          styles.tabBar,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            height: tabBarHeight,
+            paddingBottom: bottomInset,
+          },
+        ]}
+      >
+        {tabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              styles.tabBtn,
+              activeTab === tab.key && [styles.tabBtnActive, { borderTopColor: colors.primary }],
+            ]}
+            onPress={() => handleTabPress(tab.key)}
+          >
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: activeTab === tab.key ? colors.primary : colors.mutedForeground },
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {tab.key === "notes" && (memberJournals.length + memberForums.length) > 0 && (
+              <View style={[styles.tabBadge, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.tabBadgeText, { color: colors.primaryForeground }]}>
+                  {memberJournals.length + memberForums.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
@@ -387,21 +400,19 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderBottomWidth: 1,
-    marginHorizontal: 0,
   },
   tabBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    paddingTop: 14,
+    borderTopWidth: 2,
+    borderTopColor: "transparent",
     gap: 6,
   },
   tabBtnActive: {
-    borderBottomWidth: 2,
+    borderTopWidth: 2,
   },
   tabLabel: {
     fontSize: 14,
