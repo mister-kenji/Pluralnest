@@ -298,7 +298,7 @@ export default function EditMemberScreen() {
             >
               {bannerColor === "none" && <Feather name="check" size={12} color="#fff" />}
             </TouchableOpacity>
-            {MEMBER_COLORS.map((c) => (
+            {ALL_COLORS.map((c) => (
               <TouchableOpacity
                 key={c}
                 style={[
