@@ -183,10 +183,10 @@ export default function MemberProfileScreen() {
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => router.push(`/journal/create?memberId=${member.id}`)}
+              onPress={() => router.push(`/journal/member/${member.id}`)}
             >
               <Feather name="book" size={18} color={colors.primary} />
-              <Text style={[styles.actionLabel, { color: colors.foreground }]}>New Journal</Text>
+              <Text style={[styles.actionLabel, { color: colors.foreground }]}>Journal</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -201,7 +201,7 @@ export default function MemberProfileScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHeader}>
                 <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Journals</Text>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/journals")}>
+                <TouchableOpacity onPress={() => router.push(`/journal/member/${member.id}`)}>
                   <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
                 </TouchableOpacity>
               </View>

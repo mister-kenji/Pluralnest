@@ -21,11 +21,12 @@ import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
 
 export default function CreateJournalScreen() {
-  const { memberId: paramMemberId } = useLocalSearchParams<{ memberId?: string }>();
+  const { memberId: paramMemberId, locked } = useLocalSearchParams<{ memberId?: string; locked?: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { data, updateJournalEntries, updateJournalTags } = useStorage();
 
+  const isLockedToMember = locked === "1" && !!paramMemberId;
   const [selectedMemberId, setSelectedMemberId] = useState<string>(paramMemberId ?? (data.members[0]?.id ?? ""));
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -76,7 +77,11 @@ export default function CreateJournalScreen() {
     };
     updateJournalEntries([...data.journalEntries, entry]);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace(`/journal/${entry.id}`);
+    if (isLockedToMember) {
+      router.replace(`/journal/member/${selectedMemberId}`);
+    } else {
+      router.replace(`/journal/${entry.id}`);
+    }
   };
 
   return (
@@ -103,29 +108,40 @@ export default function CreateJournalScreen() {
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.label, { color: colors.mutedForeground }]}>Member</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memberScroll}>
-        {data.members
-          .filter((m) => !m.isArchived)
-          .map((m) => (
-            <TouchableOpacity
-              key={m.id}
-              style={[
-                styles.memberChip,
-                {
-                  borderColor: selectedMemberId === m.id ? m.color : colors.border,
-                  backgroundColor: selectedMemberId === m.id ? m.color + "22" : colors.secondary,
-                },
-              ]}
-              onPress={() => setSelectedMemberId(m.id)}
-            >
-              <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={26} />
-              <Text style={[styles.memberChipText, { color: selectedMemberId === m.id ? m.color : colors.foreground }]}>
-                {m.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-      </ScrollView>
+      {isLockedToMember && selectedMember ? (
+        <View style={[styles.lockedMember, { backgroundColor: selectedMember.color + "18", borderColor: selectedMember.color + "44" }]}>
+          <MemberAvatar name={selectedMember.name} color={selectedMember.color} profileImage={selectedMember.profileImage} size={26} />
+          <Text style={[styles.lockedMemberText, { color: selectedMember.color }]}>
+            {selectedMember.name}'s Journal
+          </Text>
+        </View>
+      ) : (
+        <>
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>Member</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memberScroll}>
+            {data.members
+              .filter((m) => !m.isArchived)
+              .map((m) => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[
+                    styles.memberChip,
+                    {
+                      borderColor: selectedMemberId === m.id ? m.color : colors.border,
+                      backgroundColor: selectedMemberId === m.id ? m.color + "22" : colors.secondary,
+                    },
+                  ]}
+                  onPress={() => setSelectedMemberId(m.id)}
+                >
+                  <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={26} />
+                  <Text style={[styles.memberChipText, { color: selectedMemberId === m.id ? m.color : colors.foreground }]}>
+                    {m.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+          </ScrollView>
+        </>
+      )}
 
       <Text style={[styles.label, { color: colors.mutedForeground }]}>Cover Image</Text>
       <TouchableOpacity
@@ -223,6 +239,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
+  lockedMember: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  lockedMemberText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   memberScroll: { marginBottom: 16 },
   memberChip: {
     flexDirection: "row",
