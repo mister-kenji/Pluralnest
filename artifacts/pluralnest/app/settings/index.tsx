@@ -208,6 +208,15 @@ export default function SettingsScreen() {
 
       <TouchableOpacity
         style={[styles.actionRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => router.push("/settings/custom-fields")}
+      >
+        <Feather name="sliders" size={18} color={colors.foreground} />
+        <Text style={[styles.actionText, { color: colors.foreground }]}>Custom Fields</Text>
+        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.actionRow, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 }]}
         onPress={() => router.push("/settings/export")}
       >
         <Feather name="download" size={18} color={colors.foreground} />

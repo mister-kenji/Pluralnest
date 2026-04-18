@@ -10,11 +10,15 @@ import React, {
 
 export type MemberRole = string;
 
-export type CustomField = {
+export type GlobalField = {
   id: string;
   label: string;
-  value: string;
   showByDefault: boolean;
+};
+
+export type CustomField = {
+  fieldId: string;
+  value: string;
 };
 
 export type Relationship = {

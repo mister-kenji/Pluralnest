@@ -18,9 +18,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
-import { useStorage, Member, CustomField, Relationship, AvatarShape } from "@/context/StorageContext";
+import { useStorage, Member, Relationship, AvatarShape } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
+
+type FieldValues = Record<string, string>;
 
 const ALL_COLORS = [
   // Reds / pinks
@@ -73,9 +75,15 @@ export default function EditMemberScreen() {
   const [profileImage, setProfileImage] = useState(existingMember?.profileImage ?? "");
   const [tags, setTags] = useState<string[]>(existingMember?.tags ?? []);
   const [newTag, setNewTag] = useState("");
-  const [customFields, setCustomFields] = useState<CustomField[]>(
-    existingMember?.customFields ?? [],
-  );
+  const globalFields = data.settings.customGlobalFields ?? [];
+  const [fieldValues, setFieldValues] = useState<FieldValues>(() => {
+    const existing = existingMember?.customFields ?? [];
+    const map: FieldValues = {};
+    for (const fv of existing) {
+      if (fv.fieldId) map[fv.fieldId] = fv.value;
+    }
+    return map;
+  });
   const [relationships, setRelationships] = useState<Relationship[]>(
     existingMember?.relationships ?? [],
   );
@@ -105,24 +113,8 @@ export default function EditMemberScreen() {
     }
   };
 
-  const addCustomField = () => {
-    const field: CustomField = {
-      id: genId(),
-      label: "Field",
-      value: "",
-      showByDefault: false,
-    };
-    setCustomFields((prev) => [...prev, field]);
-  };
-
-  const updateField = (fieldId: string, key: "label" | "value", value: string) => {
-    setCustomFields((prev) =>
-      prev.map((f) => (f.id === fieldId ? { ...f, [key]: value } : f)),
-    );
-  };
-
-  const removeField = (fieldId: string) => {
-    setCustomFields((prev) => prev.filter((f) => f.id !== fieldId));
+  const setFieldValue = (fieldId: string, value: string) => {
+    setFieldValues((prev) => ({ ...prev, [fieldId]: value }));
   };
 
   const addRelationship = (memberId: string) => {
@@ -156,7 +148,9 @@ export default function EditMemberScreen() {
       avatarShape,
       profileImage: profileImage || undefined,
       description: description.trim(),
-      customFields,
+      customFields: globalFields
+        .map((f) => ({ fieldId: f.id, value: fieldValues[f.id] ?? "" }))
+        .filter((fv) => fv.value.trim() !== ""),
       relationships,
       tags,
       isArchived,
@@ -371,34 +365,36 @@ export default function EditMemberScreen() {
 
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Custom Fields</Text>
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {customFields.map((cf) => (
-          <View key={cf.id} style={[styles.fieldRow, { borderBottomColor: colors.border }]}>
-            <TextInput
-              style={[styles.fieldLabelInput, { color: colors.foreground, borderColor: colors.border }]}
-              value={cf.label}
-              onChangeText={(v) => updateField(cf.id, "label", v)}
-              placeholder="Label"
-              placeholderTextColor={colors.mutedForeground}
-            />
-            <TextInput
-              style={[styles.fieldValueInput, { color: colors.foreground, borderColor: colors.border }]}
-              value={cf.value}
-              onChangeText={(v) => updateField(cf.id, "value", v)}
-              placeholder="Value"
-              placeholderTextColor={colors.mutedForeground}
-            />
-            <TouchableOpacity onPress={() => removeField(cf.id)} hitSlop={8}>
-              <Feather name="trash-2" size={16} color={colors.destructive} />
-            </TouchableOpacity>
-          </View>
-        ))}
-        <TouchableOpacity
-          style={[styles.addFieldBtn, { borderColor: colors.border }]}
-          onPress={addCustomField}
-        >
-          <Feather name="plus" size={16} color={colors.primary} />
-          <Text style={[styles.addFieldText, { color: colors.primary }]}>Add custom field</Text>
-        </TouchableOpacity>
+        {globalFields.length === 0 ? (
+          <TouchableOpacity
+            style={styles.noFieldsRow}
+            onPress={() => router.push("/settings/custom-fields")}
+          >
+            <Feather name="sliders" size={15} color={colors.mutedForeground} />
+            <Text style={[styles.noFieldsText, { color: colors.mutedForeground }]}>
+              No custom fields defined — tap to set them up in Settings
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          globalFields.map((gf, idx) => (
+            <View
+              key={gf.id}
+              style={[
+                styles.fieldRow,
+                idx < globalFields.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.fieldLabelText, { color: colors.mutedForeground }]}>{gf.label}</Text>
+              <TextInput
+                style={[styles.fieldValueInput, { color: colors.foreground, borderColor: colors.border }]}
+                value={fieldValues[gf.id] ?? ""}
+                onChangeText={(v) => setFieldValue(gf.id, v)}
+                placeholder="Enter value..."
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+          ))
+        )}
       </View>
 
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Relationships</Text>
@@ -627,22 +623,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  fieldRow: {
+  noFieldsRow: {
     flexDirection: "row",
-    gap: 8,
-    paddingBottom: 10,
-    marginBottom: 10,
-    borderBottomWidth: 1,
     alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
   },
-  fieldLabelInput: {
-    width: 90,
+  noFieldsText: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    fontStyle: "italic",
+    flex: 1,
+  },
+  fieldRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  fieldLabelText: {
+    width: 100,
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
   },
   fieldValueInput: {
     flex: 1,
@@ -651,15 +654,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   addFieldBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingVertical: 8,
-    borderTopWidth: 0,
-    borderStyle: "dashed",
   },
   addFieldText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   relRow: {

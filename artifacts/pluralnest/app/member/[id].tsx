@@ -142,16 +142,20 @@ export default function MemberProfileScreen() {
           {member.customFields.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Details</Text>
-              {member.customFields.map((cf) => (
-                <View key={cf.id} style={[styles.fieldRow, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                    {cf.label}
-                  </Text>
-                  <Text style={[styles.fieldValue, { color: colors.foreground }]}>
-                    {cf.value}
-                  </Text>
-                </View>
-              ))}
+              {member.customFields.map((cf) => {
+                const globalField = data.settings.customGlobalFields?.find((g) => g.id === cf.fieldId);
+                if (!globalField) return null;
+                return (
+                  <View key={cf.fieldId} style={[styles.fieldRow, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                      {globalField.label}
+                    </Text>
+                    <Text style={[styles.fieldValue, { color: colors.foreground }]}>
+                      {cf.value}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           )}
 
