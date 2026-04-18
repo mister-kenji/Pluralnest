@@ -17,3 +17,22 @@ export function expandAssetTokens(text: string, assets: Asset[]): string {
     return `![${asset.name}](${asset.uri})`;
   });
 }
+
+/**
+ * Convert `-> text <-` lines into a fenced code block with language "center"
+ * so the markdown renderer can apply centered text styling.
+ *
+ * Example:  "-> Hello world <-"
+ *  becomes: "```center\nHello world\n```"
+ */
+export function applyCenterSyntax(text: string): string {
+  if (!text) return text;
+  return text.replace(/^->\s*(.*?)\s*<-$/gm, (_match, content) => {
+    return "```center\n" + content + "\n```";
+  });
+}
+
+/** Run all markdown preprocessors in order. */
+export function preprocessMarkdown(text: string, assets: Asset[]): string {
+  return applyCenterSyntax(expandAssetTokens(text, assets));
+}

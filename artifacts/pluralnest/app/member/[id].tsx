@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Markdown from "react-native-markdown-display";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { expandAssetTokens } from "@/utils/assetMarkdown";
+import { preprocessMarkdown } from "@/utils/assetMarkdown";
 import { FrontingBadge } from "@/components/FrontingBadge";
 import { TagChip } from "@/components/TagChip";
 import { EmptyState } from "@/components/EmptyState";
@@ -74,16 +74,13 @@ export default function MemberProfileScreen() {
   }
 
   const mdStyles = {
-    body: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, textAlign: "center" as const },
-    paragraph: { textAlign: "center" as const, marginTop: 0, marginBottom: 6 },
+    body: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
+    paragraph: { marginTop: 0, marginBottom: 6 },
     strong: { fontFamily: "Inter_700Bold" },
     em: { fontStyle: "italic" as const },
-    bullet_list: { textAlign: "center" as const },
-    ordered_list: { textAlign: "center" as const },
-    list_item: { textAlign: "center" as const },
-    heading1: { textAlign: "center" as const, fontFamily: "Inter_700Bold", fontSize: 20, marginBottom: 4 },
-    heading2: { textAlign: "center" as const, fontFamily: "Inter_700Bold", fontSize: 17, marginBottom: 4 },
-    heading3: { textAlign: "center" as const, fontFamily: "Inter_600SemiBold", fontSize: 15, marginBottom: 4 },
+    heading1: { fontFamily: "Inter_700Bold", fontSize: 20, marginBottom: 4 },
+    heading2: { fontFamily: "Inter_700Bold", fontSize: 17, marginBottom: 4 },
+    heading3: { fontFamily: "Inter_600SemiBold", fontSize: 15, marginBottom: 4 },
     code_inline: { backgroundColor: colors.secondary, color: colors.foreground, borderRadius: 4, paddingHorizontal: 4 },
     blockquote: { backgroundColor: colors.secondary, borderLeftColor: colors.border, paddingHorizontal: 10, borderRadius: 4 },
     hr: { backgroundColor: colors.border, height: 1, marginVertical: 8 },
@@ -93,7 +90,7 @@ export default function MemberProfileScreen() {
   // body paddingHorizontal 16×2=32 + card padding 14×2=28 = 60px; subtract 4 extra for safety
   const mdImgW = screenWidth - 64;
   const mdImgH = Math.round(mdImgW * 0.5);
-  const mdImageRule = {
+  const mdRules = {
     image: (node: any) => (
       <Image
         key={node.key}
@@ -102,6 +99,23 @@ export default function MemberProfileScreen() {
         style={{ width: mdImgW, height: mdImgH, borderRadius: 8, marginVertical: 6 }}
       />
     ),
+    fence: (node: any) => {
+      if (node.attributes.language === "center") {
+        return (
+          <Text
+            key={node.key}
+            style={{ textAlign: "center", color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, marginBottom: 6 }}
+          >
+            {node.content.trim()}
+          </Text>
+        );
+      }
+      return (
+        <View key={node.key} style={{ backgroundColor: colors.secondary, borderRadius: 8, padding: 10, marginVertical: 4 }}>
+          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: colors.foreground }}>{node.content}</Text>
+        </View>
+      );
+    },
   };
 
   const tabs: { key: Tab; label: string }[] = [
@@ -212,7 +226,7 @@ export default function MemberProfileScreen() {
             {member.description ? (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
-                <Markdown style={mdStyles} rules={mdImageRule}>{expandAssetTokens(member.description, data.assets ?? [])}</Markdown>
+                <Markdown style={mdStyles} rules={mdRules}>{preprocessMarkdown(member.description, data.assets ?? [])}</Markdown>
               </View>
             ) : (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
