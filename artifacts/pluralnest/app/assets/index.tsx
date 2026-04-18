@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStorage, Asset } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
+import { persistImage } from "@/utils/persistImage";
 
 export default function AssetsScreen() {
   const colors = useColors();
@@ -40,7 +41,7 @@ export default function AssetsScreen() {
       quality: 0.85,
     });
     if (!result.canceled && result.assets[0]) {
-      setPendingUri(result.assets[0].uri);
+      setPendingUri(await persistImage(result.assets[0].uri));
       setPendingName("");
       setNameError("");
     }

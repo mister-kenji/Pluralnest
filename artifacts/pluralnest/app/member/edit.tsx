@@ -22,6 +22,7 @@ import { TagChip } from "@/components/TagChip";
 import { useStorage, Member, Relationship, AvatarShape } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
+import { persistImage } from "@/utils/persistImage";
 
 type FieldValues = Record<string, string>;
 
@@ -104,7 +105,7 @@ export default function EditMemberScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfileImage(result.assets[0].uri);
+      setProfileImage(await persistImage(result.assets[0].uri));
     }
   };
 
@@ -116,7 +117,7 @@ export default function EditMemberScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setBannerImage(result.assets[0].uri);
+      setBannerImage(await persistImage(result.assets[0].uri));
     }
   };
 
