@@ -4,9 +4,9 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
+import { Image } from "expo-image";
 import {
   Alert,
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -123,7 +123,7 @@ export default function AssetsScreen() {
       {/* Pending upload form */}
       {pendingUri && (
         <View style={[styles.pendingCard, { backgroundColor: colors.card, borderColor: colors.primary }]}>
-          <Image source={{ uri: pendingUri }} style={styles.pendingPreview} />
+          <Image source={{ uri: pendingUri }} contentFit="cover" style={styles.pendingPreview} />
           <View style={styles.pendingForm}>
             <Text style={[styles.pendingLabel, { color: colors.mutedForeground }]}>Asset name</Text>
             <TextInput
@@ -174,7 +174,7 @@ export default function AssetsScreen() {
             onPress={() => copyToken(asset.name)}
             activeOpacity={0.7}
           >
-            <Image source={{ uri: asset.uri }} style={styles.assetThumb} />
+            <Image source={{ uri: asset.uri }} contentFit="cover" style={styles.assetThumb} />
             <View style={styles.assetInfo}>
               <Text style={[styles.assetName, { color: colors.foreground }]}>{asset.name}</Text>
               <Text style={[styles.assetToken, { color: colors.primary }]}>(@{asset.name})</Text>
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 16,
   },
-  pendingPreview: { width: "100%", height: 160, resizeMode: "cover" },
+  pendingPreview: { width: "100%", height: 160 },
   pendingForm: { padding: 14, gap: 8 },
   pendingLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
   pendingInput: {
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 10,
   },
-  assetThumb: { width: 64, height: 64, borderRadius: 8, resizeMode: "cover" },
+  assetThumb: { width: 64, height: 64, borderRadius: 8 },
   assetInfo: { flex: 1, gap: 2 },
   assetName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   assetToken: { fontSize: 13, fontFamily: "Inter_600SemiBold" },

@@ -2,8 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
+import { Image } from "expo-image";
 import {
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -88,6 +88,17 @@ export default function MemberProfileScreen() {
     link: { color: colors.primary },
   };
 
+  const mdImageRule = {
+    image: (node: any) => (
+      <Image
+        key={node.key}
+        source={{ uri: node.attributes.src }}
+        contentFit="contain"
+        style={{ width: "100%", height: 220, borderRadius: 8, marginVertical: 4 }}
+      />
+    ),
+  };
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "profile", label: "Profile" },
     { key: "info", label: "Info" },
@@ -123,6 +134,7 @@ export default function MemberProfileScreen() {
           {member.bannerImage ? (
             <Image
               source={{ uri: member.bannerImage }}
+              contentFit="cover"
               style={[styles.bannerStrip, { top: 0 }]}
             />
           ) : (
@@ -195,7 +207,7 @@ export default function MemberProfileScreen() {
             {member.description ? (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
-                <Markdown style={mdStyles}>{expandAssetTokens(member.description, data.assets ?? [])}</Markdown>
+                <Markdown style={mdStyles} rules={mdImageRule}>{expandAssetTokens(member.description, data.assets ?? [])}</Markdown>
               </View>
             ) : (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -402,7 +414,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 180,
-    resizeMode: "cover",
   },
   backBtn: {
     position: "absolute",

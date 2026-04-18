@@ -3,9 +3,9 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
+import { Image } from "expo-image";
 import {
   Alert,
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -255,7 +255,7 @@ export default function EditMemberScreen() {
         activeOpacity={0.8}
       >
         {bannerImage ? (
-          <Image source={{ uri: bannerImage }} style={styles.bannerPreview} />
+          <Image source={{ uri: bannerImage }} contentFit="cover" style={styles.bannerPreview} />
         ) : (
           <View style={styles.bannerEmpty}>
             <Feather name="image" size={20} color={colors.mutedForeground} />
@@ -594,7 +594,6 @@ const styles = StyleSheet.create({
   bannerPreview: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover",
   },
   bannerEmpty: {
     flex: 1,
