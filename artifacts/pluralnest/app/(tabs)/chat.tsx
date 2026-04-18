@@ -4,6 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -26,7 +27,7 @@ const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : 0;
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { data, updateChatMessages } = useStorage();
+  const { data, updateChatMessages, softDelete } = useStorage();
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(
     data.members[0]?.id ?? null,
   );
@@ -112,7 +113,19 @@ export default function ChatScreen() {
   };
 
   const deleteMessage = (id: string) => {
-    updateChatMessages(data.chatMessages.filter((m) => m.id !== id));
+    const msg = data.chatMessages.find((m) => m.id === id);
+    Alert.alert("Delete Message", "Move this message to recently deleted?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          if (msg) softDelete(msg.id, "message", msg);
+          updateChatMessages(data.chatMessages.filter((m) => m.id !== id));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        },
+      },
+    ]);
   };
 
   const getMember = (id: string): Member | undefined =>

@@ -21,7 +21,7 @@ import { formatDate } from "@/utils/helpers";
 export default function DeletedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { data, restoreDeleted, updateMembers, updateJournalEntries, updateForumPosts, updateDeletedItems, purgeOldDeleted } =
+  const { data, restoreDeleted, updateMembers, updateJournalEntries, updateForumPosts, updateChatMessages, updateDeletedItems, purgeOldDeleted } =
     useStorage();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -45,6 +45,8 @@ export default function DeletedScreen() {
             updateJournalEntries([...data.journalEntries, item.data as JournalEntry]);
           } else if (item.type === "forum") {
             updateForumPosts([...data.forumPosts, item.data as ForumPost]);
+          } else if (item.type === "message") {
+            updateChatMessages([...data.chatMessages, item.data as any]);
           }
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
@@ -70,6 +72,10 @@ export default function DeletedScreen() {
     if (item.type === "member") return (item.data as Member).name;
     if (item.type === "journal") return (item.data as JournalEntry).title || "Untitled Journal";
     if (item.type === "forum") return (item.data as ForumPost).title;
+    if (item.type === "message") {
+      const content = (item.data as { content: string }).content ?? "";
+      return content.length > 60 ? content.slice(0, 60) + "…" : content || "Chat message";
+    }
     return "Deleted item";
   };
 

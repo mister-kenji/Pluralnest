@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -16,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
-import { useStorage, ForumReply } from "@/context/StorageContext";
+import { useStorage, ForumReply, ForumPost } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
 
@@ -24,7 +25,7 @@ export default function ForumDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { data, updateForumPosts } = useStorage();
+  const { data, updateForumPosts, softDelete } = useStorage();
   const [replyText, setReplyText] = useState("");
   const [replierMemberId, setReplierMemberId] = useState(data.members[0]?.id ?? "");
   const [showMemberPicker, setShowMemberPicker] = useState(false);
@@ -78,6 +79,22 @@ export default function ForumDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const deletePost = () => {
+    Alert.alert("Delete Post", "Move this post to recently deleted?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          softDelete(post.id, "forum", post);
+          updateForumPosts(data.forumPosts.filter((p) => p.id !== id));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          router.back();
+        },
+      },
+    ]);
+  };
+
   const totalVotes = post.pollOptions?.reduce((acc, o) => acc + o.votes.length, 0) ?? 0;
 
   return (
@@ -94,7 +111,9 @@ export default function ForumDetailScreen() {
         <Text style={[styles.topTitle, { color: colors.foreground }]} numberOfLines={1}>
           {post.title}
         </Text>
-        <View style={{ width: 22 }} />
+        <TouchableOpacity onPress={deletePost} hitSlop={8}>
+          <Feather name="trash-2" size={20} color={colors.destructive} />
+        </TouchableOpacity>
       </View>
 
       <FlatList
