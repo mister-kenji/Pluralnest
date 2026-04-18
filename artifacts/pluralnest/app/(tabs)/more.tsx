@@ -30,6 +30,7 @@ const menuGroups: { title: string; items: MenuItem[] }[] = [
   {
     title: "System",
     items: [
+      { icon: "image", label: "Assets", sublabel: "Reusable images for descriptions", route: "/assets" },
       { icon: "settings", label: "Settings", sublabel: "Customize & configure", route: "/settings" },
       { icon: "search", label: "Search", route: "/search", featureKey: "search" },
       { icon: "download", label: "Export / Backup", route: "/settings/export" },

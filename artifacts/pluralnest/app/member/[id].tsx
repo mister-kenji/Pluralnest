@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Markdown from "react-native-markdown-display";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { expandAssetTokens } from "@/utils/assetMarkdown";
 import { FrontingBadge } from "@/components/FrontingBadge";
 import { TagChip } from "@/components/TagChip";
 import { EmptyState } from "@/components/EmptyState";
@@ -194,7 +195,7 @@ export default function MemberProfileScreen() {
             {member.description ? (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
-                <Markdown style={mdStyles}>{member.description}</Markdown>
+                <Markdown style={mdStyles}>{expandAssetTokens(member.description, data.assets ?? [])}</Markdown>
               </View>
             ) : (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>

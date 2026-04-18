@@ -128,6 +128,13 @@ export type ForumReply = {
   createdAt: number;
 };
 
+export type Asset = {
+  id: string;
+  name: string;
+  uri: string;
+  createdAt: number;
+};
+
 export type Group = {
   id: string;
   name: string;
@@ -178,6 +185,7 @@ type AppData = {
   forumPosts: ForumPost[];
   groups: Group[];
   deletedItems: DeletedItem[];
+  assets: Asset[];
   settings: AppSettings;
 };
 
@@ -212,6 +220,7 @@ const defaultData: AppData = {
   forumPosts: [],
   groups: [],
   deletedItems: [],
+  assets: [],
   settings: defaultSettings,
 };
 
@@ -228,6 +237,7 @@ type StorageContextType = {
   updateForumPosts: (posts: ForumPost[]) => void;
   updateGroups: (groups: Group[]) => void;
   updateDeletedItems: (items: DeletedItem[]) => void;
+  updateAssets: (assets: Asset[]) => void;
   updateSettings: (settings: AppSettings) => void;
   softDelete: (id: string, type: DeletedItem["type"], data: unknown) => void;
   restoreDeleted: (id: string) => DeletedItem | undefined;
@@ -354,6 +364,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     updateForumPosts: (v) => update("forumPosts", v),
     updateGroups: (v) => update("groups", v),
     updateDeletedItems: (v) => update("deletedItems", v),
+    updateAssets: (v) => update("assets", v),
     updateSettings: (v) => update("settings", v),
     softDelete,
     restoreDeleted,
