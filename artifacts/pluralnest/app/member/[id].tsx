@@ -16,6 +16,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { FrontingBadge } from "@/components/FrontingBadge";
 import { TagChip } from "@/components/TagChip";
 import { EmptyState } from "@/components/EmptyState";
+import Markdown from "react-native-markdown-display";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { formatDate, hexToRgba } from "@/utils/helpers";
@@ -131,11 +132,28 @@ export default function MemberProfileScreen() {
 
         <View style={styles.body}>
           {member.description ? (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
-              <Text style={[styles.description, { color: colors.foreground }]}>
+              <Markdown
+                style={{
+                  body: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, textAlign: "center" },
+                  paragraph: { textAlign: "center", marginTop: 0, marginBottom: 6 },
+                  strong: { fontFamily: "Inter_700Bold" },
+                  em: { fontStyle: "italic" },
+                  bullet_list: { textAlign: "center" },
+                  ordered_list: { textAlign: "center" },
+                  list_item: { textAlign: "center" },
+                  heading1: { textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 20, marginBottom: 4 },
+                  heading2: { textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 17, marginBottom: 4 },
+                  heading3: { textAlign: "center", fontFamily: "Inter_600SemiBold", fontSize: 15, marginBottom: 4 },
+                  code_inline: { backgroundColor: colors.secondary, color: colors.foreground, borderRadius: 4, paddingHorizontal: 4 },
+                  blockquote: { backgroundColor: colors.secondary, borderLeftColor: colors.border, paddingHorizontal: 10, borderRadius: 4 },
+                  hr: { backgroundColor: colors.border, height: 1, marginVertical: 8 },
+                  link: { color: colors.primary },
+                }}
+              >
                 {member.description}
-              </Text>
+              </Markdown>
             </View>
           ) : null}
 
@@ -309,10 +327,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   seeAll: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 10 },
-  description: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 20,
+  aboutCard: {
+    alignItems: "center",
   },
   fieldRow: {
     flexDirection: "row",
