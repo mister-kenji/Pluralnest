@@ -3,8 +3,6 @@ import { Image } from "expo-image";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { useColors } from "@/hooks/useColors";
-
 type Props = {
   name: string;
   color: string;
@@ -14,32 +12,12 @@ type Props = {
 };
 
 export function MemberAvatar({ name, color, profileImage, size = 40, style }: Props) {
-  const colors = useColors();
   const initials = name
     .split(" ")
     .map((w) => w[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
-
-  if (profileImage) {
-    return (
-      <Image
-        source={{ uri: profileImage }}
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: 2,
-            borderColor: color,
-          },
-          style,
-        ]}
-        contentFit="cover"
-      />
-    );
-  }
 
   return (
     <View
@@ -56,13 +34,18 @@ export function MemberAvatar({ name, color, profileImage, size = 40, style }: Pr
         style,
       ]}
     >
-      {initials ? (
-        <Text
-          style={[
-            styles.initials,
-            { color: color, fontSize: size * 0.35 },
-          ]}
-        >
+      {profileImage ? (
+        <Image
+          source={{ uri: profileImage }}
+          style={{
+            width: size - 4,
+            height: size - 4,
+            borderRadius: (size - 4) / 2,
+          }}
+          contentFit="cover"
+        />
+      ) : initials ? (
+        <Text style={[styles.initials, { color: color, fontSize: size * 0.35 }]}>
           {initials}
         </Text>
       ) : (

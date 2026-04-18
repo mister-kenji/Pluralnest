@@ -2,17 +2,17 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -20,6 +20,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { useStorage, ChatMessage, Member } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
+
+const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : 0;
 
 export default function ChatScreen() {
   const colors = useColors();
@@ -35,18 +37,19 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const bottomInset = Platform.OS === "web" ? 0 : insets.bottom;
 
   const selectedMember = useMemo(
     () => data.members.find((m) => m.id === selectedMemberId),
     [data.members, selectedMemberId],
   );
 
+  // Chronological order (oldest first) — scroll to end to see newest
   const messages = useMemo(
     () =>
       showPinned
-        ? [...data.chatMessages].filter((m) => m.isPinned).reverse()
-        : [...data.chatMessages].reverse(),
+        ? data.chatMessages.filter((m) => m.isPinned)
+        : [...data.chatMessages],
     [data.chatMessages, showPinned],
   );
 
@@ -54,6 +57,15 @@ export default function ChatScreen() {
     () => data.chatMessages.filter((m) => m.isPinned).length,
     [data.chatMessages],
   );
+
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        listRef.current?.scrollToEnd({ animated: false });
+      }, 50);
+    }
+  }, [messages.length]);
 
   const sendMessage = () => {
     if (!text.trim() || !selectedMemberId) return;
@@ -119,7 +131,7 @@ export default function ChatScreen() {
         }}
         activeOpacity={0.85}
       >
-        <View style={[styles.messageRow]}>
+        <View style={styles.messageRow}>
           {sender && (
             <MemberAvatar
               name={sender.name}
@@ -195,11 +207,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior="padding"
-      keyboardVerticalOffset={0}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.header,
@@ -247,9 +255,14 @@ export default function ChatScreen() {
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
-            inverted
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.messageList}
+            contentContainerStyle={[
+              styles.messageList,
+              { paddingBottom: TAB_BAR_HEIGHT + bottomInset + 70 },
+            ]}
+            onContentSizeChange={() => {
+              listRef.current?.scrollToEnd({ animated: false });
+            }}
             ListEmptyComponent={
               <EmptyState
                 icon="message-circle"
@@ -260,7 +273,16 @@ export default function ChatScreen() {
           />
 
           {replyTo && (
-            <View style={[styles.replyBar, { backgroundColor: colors.secondary, borderTopColor: colors.border }]}>
+            <View
+              style={[
+                styles.replyBar,
+                {
+                  backgroundColor: colors.secondary,
+                  borderTopColor: colors.border,
+                  bottom: TAB_BAR_HEIGHT + bottomInset + 56,
+                },
+              ]}
+            >
               <Feather name="corner-up-left" size={16} color={colors.primary} />
               <Text style={[styles.replyBarText, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {data.chatMessages.find((m) => m.id === replyTo)?.content ?? "Image"}
@@ -274,7 +296,12 @@ export default function ChatScreen() {
           <View
             style={[
               styles.inputRow,
-              { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomInset + 8 },
+              {
+                backgroundColor: colors.card,
+                borderTopColor: colors.border,
+                paddingBottom: bottomInset + 10,
+                bottom: TAB_BAR_HEIGHT,
+              },
             ]}
           >
             <TouchableOpacity
@@ -329,7 +356,7 @@ export default function ChatScreen() {
                 {
                   backgroundColor: colors.card,
                   borderColor: colors.border,
-                  bottom: bottomInset + 70,
+                  bottom: TAB_BAR_HEIGHT + bottomInset + 66,
                 },
               ]}
             >
@@ -358,7 +385,7 @@ export default function ChatScreen() {
           )}
         </>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -383,7 +410,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   pinnedBtnText: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  messageList: { paddingHorizontal: 16, paddingVertical: 12 },
+  messageList: { paddingHorizontal: 16, paddingTop: 12 },
   messageRow: {
     flexDirection: "row",
     gap: 10,
@@ -418,21 +445,29 @@ const styles = StyleSheet.create({
   },
   pinnedText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   replyBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderTopWidth: 1,
+    zIndex: 10,
   },
   replyBarText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
   inputRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 12,
     paddingTop: 10,
     gap: 8,
     borderTopWidth: 1,
+    zIndex: 10,
   },
   memberPickerBtn: {
     width: 36,

@@ -20,7 +20,39 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
 import { useStorage, Member, CustomField, Relationship } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
-import { genId, MEMBER_COLORS } from "@/utils/helpers";
+import { genId } from "@/utils/helpers";
+
+const ALL_COLORS = [
+  // Reds / pinks
+  "#ff6b6b","#ff8787","#ffa0a0","#ffb3ba","#ff85a1","#e05c8a","#c94b8a","#b5179e",
+  // Oranges
+  "#ff9a3c","#ffb347","#ffc87a","#ffaa64","#ff7043","#f4511e",
+  // Yellows
+  "#ffd166","#ffe08a","#fff0a0","#f7c948","#e6b800",
+  // Greens
+  "#a0e8b2","#6fcf97","#43b97f","#27ae60","#b8f2c0","#c8f7a0","#a3d977","#52b788",
+  // Teals / Cyans
+  "#a0e8d4","#72efdd","#4ecdc4","#26c6da","#00bcd4","#80deea","#a0d9e8","#64b5f6",
+  // Blues
+  "#74b9ff","#4dabf7","#339af0","#228be6","#1971c2","#a8c7fa","#aecbfa",
+  // Purples / Violets
+  "#c0a0e8","#a89de8","#b39ddb","#9575cd","#7e57c2","#d4a5f5","#e0c3fc","#f3d9fa",
+  // Pinks / Lavender
+  "#e8a0bf","#f48fb1","#f06292","#e91e8c","#f8bbd9","#fce4ec",
+  // Warm neutrals
+  "#e8c0a0","#e8d0a0","#d4a574","#c19a6b","#bc8a5f",
+  // Greys / Whites
+  "#ffffff","#dddddd","#bbbbbb","#999999","#777777","#555555",
+];
+
+function isDark(hex: string): boolean {
+  const c = hex.replace("#", "");
+  if (c.length < 6) return true;
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+}
 
 export default function EditMemberScreen() {
   const { id, isNew } = useLocalSearchParams<{ id: string; isNew?: string }>();
@@ -241,20 +273,38 @@ export default function EditMemberScreen() {
       </View>
 
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Profile Color</Text>
-      <View style={[styles.colorGrid, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {MEMBER_COLORS.map((c) => (
-          <TouchableOpacity
-            key={c}
-            style={[
-              styles.colorDot,
-              { backgroundColor: c },
-              color === c && styles.colorDotSelected,
-            ]}
-            onPress={() => setColor(c)}
-          >
-            {color === c && <Feather name="check" size={14} color="#fff" />}
-          </TouchableOpacity>
-        ))}
+      <View style={[styles.colorSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.colorGrid}>
+          {ALL_COLORS.map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[
+                styles.colorDot,
+                { backgroundColor: c },
+                color === c && styles.colorDotSelected,
+              ]}
+              onPress={() => setColor(c)}
+            >
+              {color === c && <Feather name="check" size={12} color={isDark(c) ? "#fff" : "#111"} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={[styles.hexRow, { borderTopColor: colors.border }]}>
+          <View style={[styles.hexPreview, { backgroundColor: color, borderColor: colors.border }]} />
+          <TextInput
+            style={[styles.hexInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
+            value={color}
+            onChangeText={(v) => {
+              const val = v.startsWith("#") ? v : "#" + v;
+              if (/^#[0-9a-fA-F]{0,6}$/.test(val)) setColor(val);
+            }}
+            placeholder="#aabbcc"
+            placeholderTextColor={colors.mutedForeground}
+            autoCapitalize="none"
+            maxLength={7}
+          />
+          <Text style={[styles.hexLabel, { color: colors.mutedForeground }]}>Custom hex</Text>
+        </View>
       </View>
 
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Tags</Text>
@@ -454,26 +504,57 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     marginTop: 4,
   },
+  colorSection: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
   colorGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 12,
+    gap: 8,
   },
   colorDot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
   colorDotSelected: {
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 4,
   },
+  hexRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderTopWidth: 1,
+    paddingTop: 10,
+  },
+  hexPreview: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+  },
+  hexInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    width: 110,
+  },
+  hexLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
   tagWrap: { flexDirection: "row", flexWrap: "wrap", marginBottom: 8 },
   tagInputRow: { flexDirection: "row", gap: 8 },
   tagInput: {
