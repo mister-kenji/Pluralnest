@@ -97,7 +97,7 @@ export default function MemberProfileScreen() {
         key={node.key}
         source={{ uri: node.attributes.src }}
         contentFit="cover"
-        style={{ width: mdImgWidth, height: Math.round(mdImgWidth * 0.6), borderRadius: 8, marginVertical: 6 }}
+        style={{ width: mdImgWidth, height: Math.round(mdImgWidth * 0.45), borderRadius: 8, marginVertical: 6 }}
       />
     ),
   };

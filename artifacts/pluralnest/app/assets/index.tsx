@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: "hidden",
   },
-  assetThumbFull: { width: "100%", height: 160 },
+  assetThumbFull: { width: "100%", height: 110 },
   assetRowFooter: {
     flexDirection: "row",
     alignItems: "center",
