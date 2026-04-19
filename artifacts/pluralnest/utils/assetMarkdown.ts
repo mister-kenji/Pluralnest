@@ -8,7 +8,7 @@ import type { Asset } from "@/context/StorageContext";
  *  becomes: "Look at ![my_pic](file:///...) above"
  */
 export function expandAssetTokens(text: string, assets: Asset[]): string {
-  if (!text || assets.length === 0) return text;
+  if (!text || !assets || assets.length === 0) return text;
 
   return text.replace(/\(@([^)]+)\)/g, (match, rawName) => {
     const name = rawName.trim().toLowerCase();

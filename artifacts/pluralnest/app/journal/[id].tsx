@@ -338,7 +338,7 @@ export default function JournalEntryScreen() {
             />
           ) : (
             <Markdown style={mdStyles} rules={mdRules}>
-              {preprocessMarkdown(entry.content || "No content yet.", data.assets)}
+              {preprocessMarkdown(entry.content || "No content yet.", data.assets ?? [])}
             </Markdown>
           )}
 

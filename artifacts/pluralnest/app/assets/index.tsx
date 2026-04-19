@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { Image } from "expo-image";
 import {
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useStorage, Asset } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
+import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { genId } from "@/utils/helpers";
 import { persistImage } from "@/utils/persistImage";
 
@@ -31,6 +31,8 @@ export default function AssetsScreen() {
   const [pendingUri, setPendingUri] = useState<string | null>(null);
   const [pendingName, setPendingName] = useState("");
   const [nameError, setNameError] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -66,28 +68,32 @@ export default function AssetsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const copyToken = async (name: string) => {
-    await Clipboard.setStringAsync(`(@${name})`);
+  const copyToken = async (asset: Asset) => {
+    await Clipboard.setStringAsync(`(@${asset.name})`);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert("Copied!", `(@${name}) copied to clipboard.\n\nPaste it into any description or field.`);
+    setCopiedId(asset.id);
+    setTimeout(() => setCopiedId((prev) => (prev === asset.id ? null : prev)), 2000);
   };
 
-  const deleteAsset = (asset: Asset) => {
-    Alert.alert(
-      "Delete asset?",
-      `"${asset.name}" will be removed. Any (@${asset.name}) tokens that reference it will show as broken images.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => updateAssets(assets.filter((a) => a.id !== asset.id)),
-        },
-      ],
-    );
+  const deleteAsset = (asset: Asset) => setDeleteTarget(asset);
+
+  const confirmDeleteAsset = () => {
+    if (!deleteTarget) return;
+    updateAssets(assets.filter((a) => a.id !== deleteTarget.id));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setDeleteTarget(null);
   };
 
   return (
+    <View style={[{ flex: 1, backgroundColor: colors.background }]}>
+    <ConfirmSheet
+      visible={!!deleteTarget}
+      title="Delete Asset"
+      message={deleteTarget ? `"${deleteTarget.name}" will be removed. Any (@${deleteTarget.name}) tokens will show as broken images.` : ""}
+      confirmLabel="Delete"
+      onConfirm={confirmDeleteAsset}
+      onCancel={() => setDeleteTarget(null)}
+    />
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingTop: topInset + 16, paddingBottom: 120, paddingHorizontal: 16 }}
@@ -167,31 +173,39 @@ export default function AssetsScreen() {
           </Text>
         </View>
       ) : (
-        assets.map((asset) => (
-          <TouchableOpacity
-            key={asset.id}
-            style={[styles.assetRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => copyToken(asset.name)}
-            activeOpacity={0.85}
-          >
-            <Image source={{ uri: asset.uri }} contentFit="cover" style={styles.assetThumbFull} />
-            <View style={[styles.assetRowFooter, { borderTopWidth: 1, borderTopColor: colors.border }]}>
-              <View style={styles.assetInfo}>
-                <Text style={[styles.assetName, { color: colors.foreground }]}>{asset.name}</Text>
-                <Text style={[styles.assetToken, { color: colors.primary }]}>(@{asset.name})</Text>
-                <Text style={[styles.assetHint, { color: colors.mutedForeground }]}>Tap to copy token</Text>
+        assets.map((asset) => {
+          const isCopied = copiedId === asset.id;
+          return (
+            <TouchableOpacity
+              key={asset.id}
+              style={[styles.assetRow, { backgroundColor: colors.card, borderColor: isCopied ? colors.primary : colors.border }]}
+              onPress={() => copyToken(asset)}
+              activeOpacity={0.85}
+            >
+              <Image source={{ uri: asset.uri }} contentFit="cover" style={styles.assetThumbFull} />
+              <View style={[styles.assetRowFooter, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                <View style={styles.assetInfo}>
+                  <Text style={[styles.assetName, { color: colors.foreground }]}>{asset.name}</Text>
+                  <Text style={[styles.assetToken, { color: colors.primary }]}>(@{asset.name})</Text>
+                  {isCopied ? (
+                    <Text style={[styles.assetHint, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>✓ Copied to clipboard!</Text>
+                  ) : (
+                    <Text style={[styles.assetHint, { color: colors.mutedForeground }]}>Tap to copy token</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  hitSlop={10}
+                  onPress={() => deleteAsset(asset)}
+                >
+                  <Feather name="trash-2" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                hitSlop={10}
-                onPress={() => deleteAsset(asset)}
-              >
-                <Feather name="trash-2" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        ))
+            </TouchableOpacity>
+          );
+        })
       )}
     </ScrollView>
+    </View>
   );
 }
 
