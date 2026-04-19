@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "a8b144f0-1e1b-4109-9503-48a8e837ddc6"
+      }
+    },
+    "android": {
+      "package": "com.pluralnest.workspace"
+    }
+  }
+}
