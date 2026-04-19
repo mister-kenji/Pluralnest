@@ -29,16 +29,11 @@ export default function MembersScreen() {
   const insets = useSafeAreaInsets();
   const { data, updateMembers, updateGroups } = useStorage();
   const [search, setSearch] = useState("");
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newName, setNewName] = useState("");
   const [newGroupName, setNewGroupName] = useState("");
-  const [addingSubgroupToId, setAddingSubgroupToId] = useState<string | null>(null);
-  const [newSubgroupName, setNewSubgroupName] = useState("");
-  const [addingMemberToGroupId, setAddingMemberToGroupId] = useState<string | null>(null);
   const [newGroupColor, setNewGroupColor] = useState(DEFAULT_GROUP_COLOR);
-  const [editingColorForGroupId, setEditingColorForGroupId] = useState<string | null>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomClearance = useBottomTabClearance(16);
@@ -60,23 +55,14 @@ export default function MembersScreen() {
   }, [data.members, search]);
 
   const rootGroups = useMemo(
-    () => data.groups.filter((g) => !g.parentGroupId),
+    () => (data.groups ?? []).filter((g) => !g.parentGroupId),
     [data.groups],
   );
 
   const ungroupedMembers = useMemo(() => {
-    const groupedIds = new Set(data.groups.flatMap((g) => g.memberIds));
+    const groupedIds = new Set((data.groups ?? []).flatMap((g) => g.memberIds));
     return filteredMembers.filter((m) => !groupedIds.has(m.id));
   }, [filteredMembers, data.groups]);
-
-  const toggleGroup = (id: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const addMember = () => {
     if (!newName.trim()) return;
@@ -114,65 +100,55 @@ export default function MembersScreen() {
       description: "",
       createdAt: Date.now(),
     };
-    updateGroups([...data.groups, group]);
+    updateGroups([...(data.groups ?? []), group]);
     setNewGroupName("");
     setNewGroupColor(DEFAULT_GROUP_COLOR);
     setShowAddGroup(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.push(`/groups/${group.id}`);
   };
 
-  const updateGroupColor = (groupId: string, color: string) => {
-    updateGroups(data.groups.map((g) => (g.id === groupId ? { ...g, color } : g)));
-    setEditingColorForGroupId(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const addSubgroup = (parentId: string) => {
-    if (!newSubgroupName.trim()) return;
-    const subgroup: Group = {
-      id: genId(),
-      name: newSubgroupName.trim(),
-      color: data.groups.find((g) => g.id === parentId)?.color ?? colors.primary,
-      memberIds: [],
-      subGroupIds: [],
-      parentGroupId: parentId,
-      showMembersInRoot: false,
-      description: "",
-      createdAt: Date.now(),
-    };
-    const updated = data.groups.map((g) =>
-      g.id === parentId
-        ? { ...g, subGroupIds: [...g.subGroupIds, subgroup.id] }
-        : g,
+  const renderGroupCard = (group: Group) => {
+    const memberCount = group.memberIds.length;
+    const subGroupCount = group.subGroupIds.length;
+    const previewMembers = data.members.filter((m) => group.memberIds.includes(m.id) && !m.isArchived).slice(0, 4);
+    return (
+      <TouchableOpacity
+        key={group.id}
+        style={[styles.groupCard, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: group.color, borderLeftWidth: 3 }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push(`/groups/${group.id}`);
+        }}
+        activeOpacity={0.85}
+      >
+        <View style={styles.groupCardBody}>
+          <View style={styles.groupCardTop}>
+            <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
+            {subGroupCount > 0 && (
+              <View style={[styles.subBadge, { backgroundColor: group.color + "22" }]}>
+                <Feather name="folder" size={10} color={group.color} />
+                <Text style={[styles.subBadgeText, { color: group.color }]}>{subGroupCount}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.groupMeta, { color: colors.mutedForeground }]}>
+            {memberCount} member{memberCount !== 1 ? "s" : ""}
+          </Text>
+          {previewMembers.length > 0 && (
+            <View style={styles.previewAvatars}>
+              {previewMembers.map((m) => (
+                <MemberAvatar key={m.id} name={m.name} color={m.color} profileImage={m.profileImage} size={22} shape={m.avatarShape} />
+              ))}
+            </View>
+          )}
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      </TouchableOpacity>
     );
-    updateGroups([...updated, subgroup]);
-    setNewSubgroupName("");
-    setAddingSubgroupToId(null);
-    // Auto-expand the parent
-    setExpandedGroups((prev) => new Set([...prev, parentId]));
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const addMemberToGroup = (groupId: string, memberId: string) => {
-    updateGroups(
-      data.groups.map((g) =>
-        g.id === groupId ? { ...g, memberIds: [...g.memberIds, memberId] } : g,
-      ),
-    );
-    setAddingMemberToGroupId(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const removeMemberFromGroup = (groupId: string, memberId: string) => {
-    updateGroups(
-      data.groups.map((g) =>
-        g.id === groupId ? { ...g, memberIds: g.memberIds.filter((id) => id !== memberId) } : g,
-      ),
-    );
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const renderMemberCard = (member: Member, groupId?: string) => {
+  const renderMemberCard = (member: Member) => {
     const isFronting = activeFronterIds.has(member.id);
     return (
       <TouchableOpacity
@@ -206,7 +182,7 @@ export default function MembersScreen() {
           {member.role ? (
             <Text style={[styles.memberRole, { color: member.color }]}>{member.role}</Text>
           ) : null}
-          {member.tags.length > 0 && (
+          {(member.tags?.length ?? 0) > 0 && (
             <View style={styles.tags}>
               {member.tags.slice(0, 2).map((t) => (
                 <TagChip key={t} label={t} color={member.color} small />
@@ -214,198 +190,12 @@ export default function MembersScreen() {
             </View>
           )}
         </View>
-        {groupId ? (
-          <TouchableOpacity
-            hitSlop={8}
-            onPress={(e) => { e.stopPropagation?.(); removeMemberFromGroup(groupId, member.id); }}
-          >
-            <Feather name="user-minus" size={16} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        ) : (
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        )}
+        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
       </TouchableOpacity>
     );
   };
 
-  const renderGroup = (group: Group, depth = 0) => {
-    const isExpanded = expandedGroups.has(group.id);
-    const groupMembers = filteredMembers.filter((m) => group.memberIds.includes(m.id));
-    const subGroups = data.groups.filter((g) => group.subGroupIds.includes(g.id));
-    const totalCount = groupMembers.length + subGroups.reduce((acc, sg) => acc + sg.memberIds.length, 0);
-    const indent = depth * 14;
-    const isAddingHere = addingSubgroupToId === group.id;
-
-    const isEditingColor = editingColorForGroupId === group.id;
-
-    return (
-      <View key={group.id} style={[styles.groupWrap, depth > 0 && { marginLeft: indent }]}>
-        <TouchableOpacity
-          style={[styles.groupHeader, {
-            backgroundColor: depth > 0 ? colors.background : colors.secondary,
-            borderColor: depth > 0 ? group.color + "55" : colors.border,
-            borderLeftWidth: depth > 0 ? 3 : 1,
-            borderLeftColor: depth > 0 ? group.color : colors.border,
-          }]}
-          onPress={() => {
-            if (isEditingColor) { setEditingColorForGroupId(null); return; }
-            toggleGroup(group.id);
-          }}
-        >
-          <TouchableOpacity
-            hitSlop={8}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              setEditingColorForGroupId(isEditingColor ? null : group.id);
-              setExpandedGroups((prev) => new Set([...prev, group.id]));
-            }}
-          >
-            <View style={[styles.groupDot, { backgroundColor: group.color }]} />
-          </TouchableOpacity>
-          <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
-          {subGroups.length > 0 && (
-            <Text style={[styles.subgroupBadge, { color: colors.mutedForeground }]}>
-              {subGroups.length} sub
-            </Text>
-          )}
-          <Text style={[styles.groupCount, { color: colors.mutedForeground }]}>
-            {totalCount}
-          </Text>
-          <TouchableOpacity
-            style={styles.addSubgroupBtn}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              setAddingMemberToGroupId(addingMemberToGroupId === group.id ? null : group.id);
-              setAddingSubgroupToId(null);
-              setExpandedGroups((prev) => new Set([...prev, group.id]));
-            }}
-          >
-            <Feather name="user-plus" size={14} color={colors.mutedForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addSubgroupBtn}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              setAddingSubgroupToId(isAddingHere ? null : group.id);
-              setNewSubgroupName("");
-              setAddingMemberToGroupId(null);
-              setExpandedGroups((prev) => new Set([...prev, group.id]));
-            }}
-          >
-            <Feather name="folder-plus" size={14} color={colors.mutedForeground} />
-          </TouchableOpacity>
-          <Feather
-            name={isExpanded ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={colors.mutedForeground}
-          />
-        </TouchableOpacity>
-
-        {isEditingColor && (
-          <View style={[styles.colorPickerPanel, { backgroundColor: colors.card, borderColor: group.color + "55" }]}>
-            <View style={styles.colorPickerRow}>
-              <Feather name="droplet" size={13} color={group.color} />
-              <Text style={[styles.colorPickerLabel, { color: colors.mutedForeground }]}>
-                Group colour
-              </Text>
-            </View>
-            <View style={styles.colorSwatchGrid}>
-              {GROUP_COLORS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[
-                    styles.colorSwatch,
-                    { backgroundColor: c },
-                    c === DEFAULT_GROUP_COLOR && styles.colorSwatchDefault,
-                    group.color === c && styles.colorSwatchSelected,
-                  ]}
-                  onPress={() => updateGroupColor(group.id, c)}
-                />
-              ))}
-            </View>
-          </View>
-        )}
-
-        {isExpanded && (
-          <View style={styles.groupMembers}>
-            {/* Add subgroup input */}
-            {isAddingHere && (
-              <View style={[styles.subgroupInput, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Feather name="folder" size={14} color={group.color} />
-                <TextInput
-                  style={[styles.subgroupInputText, { color: colors.foreground }]}
-                  placeholder="Subgroup name..."
-                  placeholderTextColor={colors.mutedForeground}
-                  value={newSubgroupName}
-                  onChangeText={setNewSubgroupName}
-                  autoFocus
-                  onSubmitEditing={() => addSubgroup(group.id)}
-                />
-                <TouchableOpacity
-                  style={[styles.subgroupConfirm, { backgroundColor: group.color }]}
-                  onPress={() => addSubgroup(group.id)}
-                >
-                  <Feather name="plus" size={14} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setAddingSubgroupToId(null)}>
-                  <Feather name="x" size={14} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Member picker */}
-            {addingMemberToGroupId === group.id && (() => {
-              const pickable = data.members.filter(
-                (m) => !m.isArchived && !group.memberIds.includes(m.id),
-              );
-              return (
-                <View style={[styles.memberPickerBox, { backgroundColor: colors.card, borderColor: group.color + "55" }]}>
-                  <View style={styles.memberPickerHeader}>
-                    <Feather name="user-plus" size={13} color={group.color} />
-                    <Text style={[styles.memberPickerTitle, { color: colors.foreground }]}>
-                      Add member to group
-                    </Text>
-                    <TouchableOpacity onPress={() => setAddingMemberToGroupId(null)}>
-                      <Feather name="x" size={14} color={colors.mutedForeground} />
-                    </TouchableOpacity>
-                  </View>
-                  {pickable.length === 0 ? (
-                    <Text style={[styles.emptyGroupText, { color: colors.mutedForeground }]}>
-                      All members are already in this group
-                    </Text>
-                  ) : (
-                    pickable.map((m) => (
-                      <TouchableOpacity
-                        key={m.id}
-                        style={[styles.memberPickerRow, { borderTopColor: colors.border }]}
-                        onPress={() => addMemberToGroup(group.id, m.id)}
-                      >
-                        <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={28} shape={m.avatarShape} />
-                        <Text style={[styles.memberPickerName, { color: colors.foreground }]}>{m.name}</Text>
-                        <Feather name="plus" size={14} color={group.color} />
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </View>
-              );
-            })()}
-
-            {/* Subgroups (recursive) */}
-            {subGroups.map((sg) => renderGroup(sg, depth + 1))}
-
-            {/* Members */}
-            {groupMembers.length === 0 && subGroups.length === 0 && !isAddingHere && addingMemberToGroupId !== group.id ? (
-              <Text style={[styles.emptyGroupText, { color: colors.mutedForeground }]}>
-                No members — tap <Feather name="user-plus" size={12} color={colors.mutedForeground} /> to add one
-              </Text>
-            ) : (
-              groupMembers.map((m) => renderMemberCard(m, group.id))
-            )}
-          </View>
-        )}
-      </View>
-    );
-  };
+  const listData: (Group | Member)[] = [...rootGroups, ...ungroupedMembers];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -425,7 +215,7 @@ export default function MembersScreen() {
             <TouchableOpacity
               style={[styles.iconBtn, { backgroundColor: colors.secondary }]}
               onPress={() => {
-                setShowAddGroup(true);
+                setShowAddGroup((v) => !v);
                 setShowAddMember(false);
               }}
             >
@@ -434,7 +224,7 @@ export default function MembersScreen() {
             <TouchableOpacity
               style={[styles.iconBtn, { backgroundColor: colors.primary }]}
               onPress={() => {
-                setShowAddMember(true);
+                setShowAddMember((v) => !v);
                 setShowAddGroup(false);
               }}
             >
@@ -518,7 +308,6 @@ export default function MembersScreen() {
                   style={[
                     styles.colorSwatch,
                     { backgroundColor: c },
-                    c === DEFAULT_GROUP_COLOR && styles.colorSwatchDefault,
                     newGroupColor === c && styles.colorSwatchSelected,
                   ]}
                   onPress={() => setNewGroupColor(c)}
@@ -530,7 +319,7 @@ export default function MembersScreen() {
       </View>
 
       <FlatList
-        data={[...rootGroups, ...ungroupedMembers]}
+        data={listData}
         keyExtractor={(item) => ("memberIds" in item ? `group-${item.id}` : item.id)}
         contentContainerStyle={{
           paddingHorizontal: 16,
@@ -547,7 +336,7 @@ export default function MembersScreen() {
           />
         }
         renderItem={({ item }) => {
-          if ("memberIds" in item) return renderGroup(item as Group);
+          if ("memberIds" in item) return renderGroupCard(item as Group);
           return renderMemberCard(item as Member);
         }}
       />
@@ -568,21 +357,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  title: {
-    fontSize: 26,
-    fontFamily: "Inter_700Bold",
-  },
-  actions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  title: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  actions: { flexDirection: "row", gap: 8 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -592,11 +369,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   quickAdd: {
     flexDirection: "row",
     gap: 8,
@@ -608,198 +381,57 @@ const styles = StyleSheet.create({
   },
   quickAddInput: {
     flex: 1,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
   },
   quickAddBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
+  groupDotPreview: { width: 20, height: 20, borderRadius: 10 },
+  colorSwatchGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  colorSwatch: { width: 26, height: 26, borderRadius: 13 },
+  colorSwatchSelected: { borderWidth: 3, borderColor: "#fff" },
+  groupCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 8,
+    gap: 10,
+  },
+  groupCardBody: { flex: 1 },
+  groupCardTop: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 3 },
+  groupName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  subBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
+  subBadgeText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  groupMeta: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  previewAvatars: { flexDirection: "row", gap: 4, marginTop: 6 },
   memberCard: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 14,
-    borderWidth: 1.5,
-    marginBottom: 10,
-    gap: 12,
-    overflow: "hidden",
-  },
-  colorBar: {
-    width: 4,
-    alignSelf: "stretch",
-  },
-  memberInfo: { flex: 1, paddingVertical: 12 },
-  memberNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  memberName: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-  },
-  frontingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  memberPronouns: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
-  },
-  memberRole: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-    marginTop: 1,
-  },
-  tags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 4,
-  },
-  groupWrap: {
-    marginBottom: 12,
-  },
-  groupHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-  },
-  groupDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  groupName: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  groupCount: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  groupMembers: { paddingLeft: 12, paddingTop: 6 },
-  subgroupBadge: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginRight: -4,
-  },
-  addSubgroupBtn: {
-    padding: 4,
-  },
-  subgroupInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  subgroupInputText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  subgroupConfirm: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyGroupText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  memberPickerBox: {
-    borderRadius: 10,
-    borderWidth: 1,
     marginBottom: 8,
     overflow: "hidden",
-  },
-  memberPickerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  memberPickerTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-  },
-  memberPickerRow: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderTopWidth: 1,
+    paddingRight: 12,
+    paddingVertical: 10,
   },
-  memberPickerName: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  groupDotPreview: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    flexShrink: 0,
-  },
-  colorPickerPanel: {
-    marginTop: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 10,
-    gap: 8,
-    marginBottom: 4,
-  },
-  colorPickerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  colorPickerLabel: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-  },
-  colorSwatchGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  colorSwatch: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-  },
-  colorSwatchDefault: {
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: "#aaaaaa",
-  },
-  colorSwatchSelected: {
-    borderWidth: 3,
-    borderColor: "#fff",
-    transform: [{ scale: 1.15 }],
-  },
+  colorBar: { width: 4, alignSelf: "stretch" },
+  memberInfo: { flex: 1 },
+  memberNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  memberName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  memberPronouns: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  memberRole: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 3 },
+  frontingDot: { width: 8, height: 8, borderRadius: 4 },
 });
