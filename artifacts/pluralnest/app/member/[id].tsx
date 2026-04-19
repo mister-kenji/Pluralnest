@@ -232,7 +232,7 @@ export default function MemberProfileScreen() {
                 {member.role ? (
                   <View style={[styles.card, styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Role</Text>
-                    <Text style={[styles.metaValue, { color: member.color }]}>{member.role}</Text>
+                    <Text style={[styles.metaValue, { color: colors.foreground }]}>{member.role}</Text>
                   </View>
                 ) : null}
               </View>
