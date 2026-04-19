@@ -70,6 +70,7 @@ export default function EditMemberScreen() {
   );
 
   const [name, setName] = useState(existingMember?.name ?? "");
+  const [alias, setAlias] = useState(existingMember?.alias ?? "");
   const [pronouns, setPronouns] = useState(existingMember?.pronouns ?? "");
   const [role, setRole] = useState(existingMember?.role ?? "");
   const [color, setColor] = useState(existingMember?.color ?? MEMBER_COLORS[0]);
@@ -159,6 +160,7 @@ export default function EditMemberScreen() {
     const updated: Member = {
       id: existingMember?.id ?? genId(),
       name: name.trim(),
+      alias: alias.trim() || undefined,
       pronouns: pronouns.trim(),
       role: role.trim(),
       color,
@@ -330,6 +332,16 @@ export default function EditMemberScreen() {
           value={name}
           onChangeText={setName}
           placeholder="Member name"
+          placeholderTextColor={colors.mutedForeground}
+        />
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 14 }]}>
+          Alias
+        </Text>
+        <TextInput
+          style={[styles.input, { color: colors.foreground, borderBottomColor: colors.border }]}
+          value={alias}
+          onChangeText={setAlias}
+          placeholder="Nickname, alternate name..."
           placeholderTextColor={colors.mutedForeground}
         />
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 14 }]}>

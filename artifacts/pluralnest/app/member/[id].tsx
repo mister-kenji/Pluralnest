@@ -186,6 +186,9 @@ export default function MemberProfileScreen() {
           />
 
           <Text style={[styles.name, { color: colors.foreground }]}>{member.name}</Text>
+          {member.alias ? (
+            <Text style={[styles.alias, { color: colors.mutedForeground }]}>{member.alias}</Text>
+          ) : null}
           {activeFront && (
             <View style={styles.frontingRow}>
               <View style={[styles.frontDot, { backgroundColor: "#4ade80" }]} />
@@ -587,6 +590,7 @@ const styles = StyleSheet.create({
   },
   avatar: { marginTop: 40, marginBottom: 12 },
   name: { fontSize: 24, fontFamily: "Inter_700Bold", textAlign: "center" },
+  alias: { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 2 },
   metaRow: { flexDirection: "row", gap: 10 },
   metaCard: { flex: 1 },
   metaValue: { fontSize: 15, fontFamily: "Inter_500Medium" },

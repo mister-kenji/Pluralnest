@@ -31,6 +31,7 @@ export type AvatarShape = "circle" | "square" | "diamond" | "heart" | "hexagon" 
 export type Member = {
   id: string;
   name: string;
+  alias?: string;
   pronouns: string;
   role: string;
   color: string;
