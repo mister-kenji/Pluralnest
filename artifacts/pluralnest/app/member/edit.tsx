@@ -403,10 +403,10 @@ export default function EditMemberScreen() {
 
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Avatar Shape</Text>
       <View style={[styles.shapeRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {(["circle", "square", "diamond", "heart", "hexagon", "shield", "star", "triangle"] as AvatarShape[]).map((s) => {
+        {(["circle", "square", "diamond", "heart", "hexagon", "shield", "star", "triangle", "flower"] as AvatarShape[]).map((s) => {
           const labels: Record<AvatarShape, string> = {
             circle: "Circle", square: "Square", diamond: "Diamond", heart: "Heart",
-            hexagon: "Hexagon", shield: "Shield", star: "Star", triangle: "Triangle",
+            hexagon: "Hexagon", shield: "Shield", star: "Star", triangle: "Triangle", flower: "Flower",
           };
           const selected = avatarShape === s;
           return (
