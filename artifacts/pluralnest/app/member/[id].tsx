@@ -266,7 +266,9 @@ export default function MemberProfileScreen() {
             ) : (
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.mutedForeground, textAlign: "center" }]}>Details</Text>
-                {(data.settings.customGlobalFields ?? []).map((gf, idx, arr) => {
+                {/* Horizontal rule under the title */}
+                <View style={[styles.detailsHRule, { backgroundColor: colors.border }]} />
+                {(data.settings.customGlobalFields ?? []).map((gf, idx) => {
                   const fv = member.customFields.find((c) => c.fieldId === gf.id);
                   return (
                     <View
@@ -277,6 +279,8 @@ export default function MemberProfileScreen() {
                       ]}
                     >
                       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{gf.label}</Text>
+                      {/* Vertical divider */}
+                      <View style={[styles.fieldVDivider, { backgroundColor: colors.border }]} />
                       <Text style={[styles.fieldValue, { color: fv?.value ? colors.foreground : colors.mutedForeground }]}>
                         {fv?.value || "—"}
                       </Text>
@@ -539,14 +543,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 8,
   },
+  detailsHRule: {
+    height: 1,
+    marginHorizontal: -14,
+    marginBottom: 0,
+  },
   fieldRow: {
     flexDirection: "row",
-    paddingTop: 10,
-    marginTop: 10,
-    gap: 12,
+    alignItems: "stretch",
+    paddingVertical: 10,
+    marginHorizontal: -14,
+    paddingHorizontal: 14,
   },
-  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
-  fieldValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 2, textAlign: "right" },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1, paddingRight: 12 },
+  fieldVDivider: { width: 1, alignSelf: "stretch" },
+  fieldValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 2, textAlign: "right", paddingLeft: 12 },
   relRow: {
     flexDirection: "row",
     alignItems: "center",
