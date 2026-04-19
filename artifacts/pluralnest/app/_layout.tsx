@@ -25,6 +25,7 @@ function RootLayoutNav() {
       <Stack.Screen name="member/[id]" />
       <Stack.Screen name="member/edit" />
       <Stack.Screen name="fronting/index" />
+      <Stack.Screen name="fronting/stats" />
       <Stack.Screen name="journal/[id]" />
       <Stack.Screen name="journal/create" />
       <Stack.Screen name="headspace/index" />

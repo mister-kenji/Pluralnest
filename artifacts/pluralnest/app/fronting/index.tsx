@@ -6,6 +6,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -27,6 +28,14 @@ const STATUS_OPTIONS: { value: FrontStatus; label: string }[] = [
   { value: "co-conscious", label: "Co-Conscious" },
 ];
 
+export const MOODS = [
+  { value: 1, emoji: "😔", label: "Rough",  color: "#ef4444" },
+  { value: 2, emoji: "😕", label: "Low",    color: "#f97316" },
+  { value: 3, emoji: "😐", label: "Okay",   color: "#eab308" },
+  { value: 4, emoji: "🙂", label: "Good",   color: "#84cc16" },
+  { value: 5, emoji: "😊", label: "Great",  color: "#22c55e" },
+];
+
 export default function FrontingLogScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -36,6 +45,7 @@ export default function FrontingLogScreen() {
   const [selectedStatus, setSelectedStatus] = useState<FrontStatus>("main");
   const [customStatus, setCustomStatus] = useState("");
   const [switchNote, setSwitchNote] = useState("");
+  const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [filterDate, setFilterDate] = useState("");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -59,6 +69,15 @@ export default function FrontingLogScreen() {
 
   const submitting = React.useRef(false);
 
+  const openModal = () => {
+    setSelectedMemberId("");
+    setSelectedStatus("main");
+    setCustomStatus("");
+    setSwitchNote("");
+    setSelectedMood(null);
+    setShowAddModal(true);
+  };
+
   const logSwitch = () => {
     if (!selectedMemberId || submitting.current) return;
     submitting.current = true;
@@ -70,13 +89,10 @@ export default function FrontingLogScreen() {
       customStatus: customStatus || undefined,
       startTime: Date.now(),
       note: switchNote || undefined,
+      mood: selectedMood ?? undefined,
     };
     updateFrontEntries([...data.frontEntries, newEntry]);
     setShowAddModal(false);
-    setSelectedMemberId("");
-    setSelectedStatus("main");
-    setCustomStatus("");
-    setSwitchNote("");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => { submitting.current = false; }, 800);
   };
@@ -95,6 +111,7 @@ export default function FrontingLogScreen() {
     const duration = item.endTime
       ? formatDuration(item.endTime - item.startTime)
       : formatDuration(Date.now() - item.startTime);
+    const moodMeta = item.mood != null ? MOODS.find((m) => m.value === item.mood) : null;
 
     return (
       <View style={[styles.entryCard, { backgroundColor: colors.card, borderColor: item.endTime ? colors.border : member?.color ?? colors.primary }]}>
@@ -117,6 +134,12 @@ export default function FrontingLogScreen() {
               {member?.name ?? "Unknown"}
             </Text>
             <FrontingBadge status={item.status} customStatus={item.customStatus} />
+            {moodMeta && (
+              <View style={[styles.moodPill, { backgroundColor: moodMeta.color + "22" }]}>
+                <Text style={styles.moodEmoji}>{moodMeta.emoji}</Text>
+                <Text style={[styles.moodPillLabel, { color: moodMeta.color }]}>{moodMeta.label}</Text>
+              </View>
+            )}
           </View>
           <Text style={[styles.entryTime, { color: colors.mutedForeground }]}>
             {formatTime(item.startTime)}
@@ -160,12 +183,21 @@ export default function FrontingLogScreen() {
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.foreground }]}>Fronting Log</Text>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => setShowAddModal(true)}
-          >
-            <Feather name="plus" size={20} color={colors.primaryForeground} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={[styles.statsBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+              onPress={() => router.push("/fronting/stats")}
+            >
+              <Feather name="bar-chart-2" size={16} color={colors.mutedForeground} />
+              <Text style={[styles.statsBtnText, { color: colors.mutedForeground }]}>Stats</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: colors.primary }]}
+              onPress={openModal}
+            >
+              <Feather name="plus" size={20} color={colors.primaryForeground} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {activeFronters.length > 0 && (
@@ -203,15 +235,19 @@ export default function FrontingLogScreen() {
             icon="clock"
             title="No fronting logs"
             subtitle="Log your first switch"
-            action={{ label: "Log Switch", onPress: () => setShowAddModal(true) }}
+            action={{ label: "Log Switch", onPress: openModal }}
           />
         }
         renderItem={renderEntry}
       />
 
+      {/* ── Log Switch Modal ── */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <View style={[styles.modalOverlay, { backgroundColor: "#0009" }]}>
-          <View style={[styles.modal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <ScrollView
+            style={[styles.modal, { backgroundColor: colors.card, borderColor: colors.border }]}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log Switch</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
@@ -288,6 +324,29 @@ export default function FrontingLogScreen() {
               placeholderTextColor={colors.mutedForeground}
             />
 
+            {/* ── Mood check-in ── */}
+            <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>How are you feeling? (optional)</Text>
+            <View style={styles.moodRow}>
+              {MOODS.map((m) => (
+                <TouchableOpacity
+                  key={m.value}
+                  style={[
+                    styles.moodBtn,
+                    {
+                      borderColor: selectedMood === m.value ? m.color : colors.border,
+                      backgroundColor: selectedMood === m.value ? m.color + "22" : colors.secondary,
+                    },
+                  ]}
+                  onPress={() => setSelectedMood(selectedMood === m.value ? null : m.value)}
+                >
+                  <Text style={styles.moodBtnEmoji}>{m.emoji}</Text>
+                  <Text style={[styles.moodBtnLabel, { color: selectedMood === m.value ? m.color : colors.mutedForeground }]}>
+                    {m.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>
               Switch Note (optional)
             </Text>
@@ -317,7 +376,7 @@ export default function FrontingLogScreen() {
                 Log Switch
               </Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -338,6 +397,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   title: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  statsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  statsBtnText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   addBtn: {
     width: 36,
     height: 36,
@@ -376,11 +446,21 @@ const styles = StyleSheet.create({
   entryTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     marginBottom: 4,
     flexWrap: "wrap",
   },
   memberName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  moodPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  moodEmoji: { fontSize: 12 },
+  moodPillLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
   entryTime: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 2 },
   entryDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   noteBubble: {
@@ -398,16 +478,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "flex-start",
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
+  modalOverlay: { flex: 1, justifyContent: "flex-end" },
   modal: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
     padding: 20,
-    maxHeight: "85%",
+    maxHeight: "90%",
   },
   modalHeader: {
     flexDirection: "row",
@@ -442,6 +519,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  moodRow: { flexDirection: "row", gap: 8 },
+  moodBtn: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 4,
+  },
+  moodBtnEmoji: { fontSize: 20 },
+  moodBtnLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
   modalInput: {
     borderWidth: 1,
     borderRadius: 10,
@@ -455,6 +543,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 16,
+    marginBottom: 8,
   },
   logBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });

@@ -57,6 +57,7 @@ export type FrontEntry = {
   startTime: number;
   endTime?: number;
   note?: string;
+  mood?: number; // 1–5 (1 = rough, 5 = great)
 };
 
 export type JournalTag = {
