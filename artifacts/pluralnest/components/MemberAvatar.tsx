@@ -1,12 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Svg, Defs, ClipPath, Path, Image as SvgImage, Text as SvgText } from "react-native-svg";
 
 import { AvatarShape } from "@/context/StorageContext";
 
-// All paths are normalized to a 100×100 viewBox
 const SHAPE_PATHS: Record<AvatarShape, string> = {
   circle:  "M50,5 A45,45,0,1,1,49.9999,5 Z",
   square:  "M16,5 L84,5 Q95,5 95,16 L95,84 Q95,95 84,95 L16,95 Q5,95 5,84 L5,16 Q5,5 16,5 Z",
@@ -34,6 +33,7 @@ export function MemberAvatar({
   style,
 }: Props) {
   const clipId = React.useRef(`av-clip-${++_uid}`).current;
+  const [imgFailed, setImgFailed] = useState(false);
 
   const initials = name
     .split(" ")
@@ -42,7 +42,8 @@ export function MemberAvatar({
     .toUpperCase()
     .slice(0, 2);
 
-  // Circle and square work perfectly with native borderRadius + overflow hidden
+  const showImage = !!profileImage && !imgFailed;
+
   if (shape === "circle" || shape === "square") {
     const borderRadius = shape === "circle" ? size / 2 : size * 0.16;
     return (
@@ -60,11 +61,12 @@ export function MemberAvatar({
           style,
         ]}
       >
-        {profileImage ? (
+        {showImage ? (
           <Image
             source={{ uri: profileImage }}
             style={{ width: size - 4, height: size - 4, borderRadius: Math.max(0, borderRadius - 2) }}
             contentFit="cover"
+            onError={() => setImgFailed(true)}
           />
         ) : initials ? (
           <Text style={[styles.initials, { color, fontSize: size * 0.35 }]}>{initials}</Text>
@@ -75,7 +77,6 @@ export function MemberAvatar({
     );
   }
 
-  // Heart and diamond use SVG clipping
   const shapePath = SHAPE_PATHS[shape];
   const strokeWidth = Math.max(2, size * 0.06);
 
@@ -88,11 +89,9 @@ export function MemberAvatar({
           </ClipPath>
         </Defs>
 
-        {/* Tinted background */}
         <Path d={shapePath} fill={color + "33"} />
 
-        {/* Profile image clipped to shape */}
-        {profileImage ? (
+        {showImage ? (
           <SvgImage
             href={profileImage}
             x="0"
@@ -115,12 +114,10 @@ export function MemberAvatar({
           </SvgText>
         ) : null}
 
-        {/* Colored border */}
         <Path d={shapePath} fill="none" stroke={color} strokeWidth={strokeWidth} />
       </Svg>
 
-      {/* Fallback icon (no image, no initials) */}
-      {!profileImage && !initials && (
+      {!showImage && !initials && (
         <View style={[StyleSheet.absoluteFill, styles.center]}>
           <Feather name="user" size={size * 0.5} color={color} />
         </View>
