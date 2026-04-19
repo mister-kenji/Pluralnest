@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useStorage, ChatMessage, ChatChannel, Member } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
+import { persistImage } from "@/utils/persistImage";
 
 export default function ChatScreen() {
   const colors = useColors();
@@ -152,12 +153,13 @@ export default function ChatScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0] && selectedMemberId) {
+      const uri = await persistImage(result.assets[0].uri);
       const msg: ChatMessage = {
         id: genId(),
         memberId: selectedMemberId,
         channelId: activeChannelId,
         content: "",
-        imageUri: result.assets[0].uri,
+        imageUri: uri,
         isPinned: false,
         createdAt: Date.now(),
         reactions: [],

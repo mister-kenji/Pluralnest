@@ -19,6 +19,7 @@ import { TagChip } from "@/components/TagChip";
 import { useStorage, JournalEntry } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
+import { persistImage } from "@/utils/persistImage";
 
 export default function CreateJournalScreen() {
   const { memberId: paramMemberId, locked } = useLocalSearchParams<{ memberId?: string; locked?: string }>();
@@ -46,7 +47,7 @@ export default function CreateJournalScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setCoverImage(result.assets[0].uri);
+      setCoverImage(await persistImage(result.assets[0].uri));
     }
   };
 

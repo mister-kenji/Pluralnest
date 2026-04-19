@@ -28,6 +28,7 @@ import { useLock } from "@/context/LockContext";
 import { useColors } from "@/hooks/useColors";
 import { formatDateTime, genId } from "@/utils/helpers";
 import { preprocessMarkdown } from "@/utils/assetMarkdown";
+import { persistImage } from "@/utils/persistImage";
 
 export default function JournalEntryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -106,7 +107,7 @@ export default function JournalEntryScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setEditCover(result.assets[0].uri);
+      setEditCover(await persistImage(result.assets[0].uri));
     }
   };
 
