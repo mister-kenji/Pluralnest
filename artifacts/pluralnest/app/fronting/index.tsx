@@ -21,19 +21,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { useStorage, FrontEntry, FrontStatus } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatDate, formatTime, formatDuration } from "@/utils/helpers";
+import { MOODS } from "@/utils/moods";
+
+export { MOODS };
 
 const STATUS_OPTIONS: { value: FrontStatus; label: string }[] = [
   { value: "main", label: "Main Front" },
   { value: "co-front", label: "Co-Front" },
   { value: "co-conscious", label: "Co-Conscious" },
-];
-
-export const MOODS = [
-  { value: 1, emoji: "😔", label: "Rough",  color: "#ef4444" },
-  { value: 2, emoji: "😕", label: "Low",    color: "#f97316" },
-  { value: 3, emoji: "😐", label: "Okay",   color: "#eab308" },
-  { value: 4, emoji: "🙂", label: "Good",   color: "#84cc16" },
-  { value: 5, emoji: "😊", label: "Great",  color: "#22c55e" },
 ];
 
 export default function FrontingLogScreen() {

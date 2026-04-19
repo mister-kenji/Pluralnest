@@ -18,6 +18,34 @@ import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { useBottomTabClearance } from "@/hooks/useBottomTabClearance";
 import { formatDuration, formatTime } from "@/utils/helpers";
+import { getMood } from "@/utils/moods";
+
+const ACTIVITY_COLORS = {
+  front:   "#4ade80",
+  journal: "#a0e8b2",
+  forum:   "#a89de8",
+  chat:    "#a0d9e8",
+} as const;
+
+type ActivityKind = "front" | "journal" | "forum" | "chat";
+
+type ActivityItem = {
+  id: string;
+  kind: ActivityKind;
+  time: number;
+  memberId?: string;
+  title: string;
+  subtitle?: string;
+  route?: string;
+  mood?: number;
+};
+
+function kindIcon(kind: ActivityKind): keyof typeof Feather.glyphMap {
+  if (kind === "front")   return "clock";
+  if (kind === "journal") return "book-open";
+  if (kind === "forum")   return "message-square";
+  return "message-circle";
+}
 
 export default function DashboardScreen() {
   const colors = useColors();
@@ -32,17 +60,6 @@ export default function DashboardScreen() {
       const member = data.members.find((m) => m.id === e.memberId);
       return { entry: e, member };
     });
-  }, [data.frontEntries, data.members]);
-
-  const recentSwitches = useMemo(() => {
-    return data.frontEntries
-      .filter((e) => e.endTime)
-      .sort((a, b) => (b.endTime ?? 0) - (a.endTime ?? 0))
-      .slice(0, 5)
-      .map((e) => {
-        const member = data.members.find((m) => m.id === e.memberId);
-        return { entry: e, member };
-      });
   }, [data.frontEntries, data.members]);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -73,6 +90,81 @@ export default function DashboardScreen() {
       color: "#a0e8b2",
     },
   ];
+
+  const dailyActivity = useMemo((): ActivityItem[] => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const items: ActivityItem[] = [];
+
+    data.frontEntries.forEach((e) => {
+      if (e.startTime < cutoff && (e.endTime == null || e.endTime < cutoff)) return;
+      const member = data.members.find((m) => m.id === e.memberId);
+      if (!member) return;
+      const statusLabel =
+        e.status === "main" ? "Main Front"
+        : e.status === "co-front" ? "Co-Front"
+        : "Co-Conscious";
+      const duration = e.endTime
+        ? formatDuration(e.endTime - e.startTime)
+        : formatDuration(Date.now() - e.startTime) + " (ongoing)";
+      items.push({
+        id: `front-${e.id}`,
+        kind: "front",
+        time: e.startTime,
+        memberId: e.memberId,
+        title: `${member.name} fronted`,
+        subtitle: `${statusLabel} · ${duration}`,
+        route: "/fronting",
+        mood: e.mood,
+      });
+    });
+
+    data.journalEntries.forEach((e) => {
+      if (e.createdAt < cutoff) return;
+      const member = data.members.find((m) => m.id === e.memberId);
+      items.push({
+        id: `journal-${e.id}`,
+        kind: "journal",
+        time: e.createdAt,
+        memberId: e.memberId,
+        title: e.title || "Untitled entry",
+        subtitle: member ? `Journal — ${member.name}` : "Journal",
+        route: "/(tabs)/journals",
+      });
+    });
+
+    data.forumPosts.forEach((p) => {
+      if (p.createdAt < cutoff) return;
+      const member = data.members.find((m) => m.id === p.memberId);
+      items.push({
+        id: `forum-${p.id}`,
+        kind: "forum",
+        time: p.createdAt,
+        memberId: p.memberId,
+        title: p.title || "Untitled post",
+        subtitle: member ? `Forum — ${member.name}` : "Forum",
+        route: "/(tabs)/more",
+      });
+    });
+
+    const recentChat = data.chatMessages.filter((m) => m.createdAt >= cutoff);
+    if (recentChat.length > 0) {
+      const latest = Math.max(...recentChat.map((m) => m.createdAt));
+      items.push({
+        id: "chat-summary",
+        kind: "chat",
+        time: latest,
+        title: `${recentChat.length} message${recentChat.length !== 1 ? "s" : ""} in Inner Chat`,
+        route: "/(tabs)/chat",
+      });
+    }
+
+    return items.sort((a, b) => b.time - a.time);
+  }, [data.frontEntries, data.journalEntries, data.forumPosts, data.chatMessages, data.members]);
+
+  const todayLabel = useMemo(() => {
+    const d = new Date();
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }, []);
 
   return (
     <ScrollView
@@ -198,35 +290,86 @@ export default function DashboardScreen() {
           ))}
       </View>
 
-      {recentSwitches.length > 0 && (
-        <>
-          <Text style={[styles.label, { color: colors.mutedForeground }]}>Recent Switches</Text>
-          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {recentSwitches.map(({ entry, member }) =>
-              member ? (
-                <View key={entry.id} style={[styles.switchRow, { borderBottomColor: colors.border }]}>
+      <View style={styles.overviewHeader}>
+        <Text style={[styles.label, { color: colors.mutedForeground, marginHorizontal: 0, marginBottom: 0 }]}>
+          Past 24 Hours
+        </Text>
+        <Text style={[styles.overviewDate, { color: colors.mutedForeground }]}>
+          {todayLabel}
+        </Text>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}>
+        {dailyActivity.length === 0 ? (
+          <View style={styles.emptyActivity}>
+            <Feather name="moon" size={22} color={colors.mutedForeground} style={{ opacity: 0.5 }} />
+            <Text style={[styles.emptyActivityText, { color: colors.mutedForeground }]}>
+              Quiet day — nothing logged yet
+            </Text>
+          </View>
+        ) : (
+          dailyActivity.map((item, idx) => {
+            const accentColor = ACTIVITY_COLORS[item.kind];
+            const member = item.memberId
+              ? data.members.find((m) => m.id === item.memberId)
+              : undefined;
+            const mood = getMood(item.mood);
+            const isLast = idx === dailyActivity.length - 1;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.activityRow,
+                  !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                ]}
+                activeOpacity={item.route ? 0.7 : 1}
+                onPress={() => {
+                  if (item.route) {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(item.route as any);
+                  }
+                }}
+              >
+                <View style={[styles.activityAccent, { backgroundColor: accentColor }]} />
+                <View style={styles.activityIconWrap}>
+                  <Feather name={kindIcon(item.kind)} size={14} color={accentColor} />
+                </View>
+                {member ? (
                   <MemberAvatar
                     name={member.name}
                     color={member.color}
                     profileImage={member.profileImage}
-                    size={32}
+                    size={30}
                   />
-                  <View style={styles.switchInfo}>
-                    <Text style={[styles.switchName, { color: colors.foreground }]}>
-                      {member.name}
+                ) : (
+                  <View style={styles.activityNoAvatar} />
+                )}
+                <View style={styles.activityText}>
+                  <View style={styles.activityTitleRow}>
+                    <Text
+                      style={[styles.activityTitle, { color: colors.foreground }]}
+                      numberOfLines={1}
+                    >
+                      {item.title}
                     </Text>
-                    <Text style={[styles.switchTime, { color: colors.mutedForeground }]}>
-                      {formatTime(entry.startTime)} → {entry.endTime ? formatTime(entry.endTime) : "now"}{" "}
-                      · {formatDuration((entry.endTime ?? Date.now()) - entry.startTime)}
-                    </Text>
+                    {mood && (
+                      <Text style={styles.activityMoodEmoji}>{mood.emoji}</Text>
+                    )}
                   </View>
-                  <FrontingBadge status={entry.status} customStatus={entry.customStatus} />
+                  {item.subtitle ? (
+                    <Text style={[styles.activitySub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                      {item.subtitle}
+                    </Text>
+                  ) : null}
                 </View>
-              ) : null,
-            )}
-          </View>
-        </>
-      )}
+                <Text style={[styles.activityTime, { color: colors.mutedForeground }]}>
+                  {formatTime(item.time)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -382,22 +525,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },
-  switchRow: {
+  overviewHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 12,
-    borderBottomWidth: 1,
+    justifyContent: "space-between",
+    marginHorizontal: 20,
+    marginTop: 4,
   },
-  switchInfo: { flex: 1 },
-  switchName: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-    marginBottom: 2,
-  },
-  switchTime: {
+  overviewDate: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
+  },
+  emptyActivity: {
+    paddingVertical: 28,
+    alignItems: "center",
+    gap: 10,
+  },
+  emptyActivityText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+  },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingRight: 16,
+    gap: 10,
+  },
+  activityAccent: {
+    width: 3,
+    alignSelf: "stretch",
+    borderRadius: 2,
+    marginLeft: 0,
+  },
+  activityIconWrap: {
+    width: 22,
+    alignItems: "center",
+  },
+  activityNoAvatar: {
+    width: 30,
+    height: 30,
+  },
+  activityText: {
+    flex: 1,
+    gap: 1,
+  },
+  activityTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    flexShrink: 1,
+  },
+  activityMoodEmoji: {
+    fontSize: 13,
+  },
+  activitySub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  activityTime: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    flexShrink: 0,
   },
 });

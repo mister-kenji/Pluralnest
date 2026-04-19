@@ -15,7 +15,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { formatDuration } from "@/utils/helpers";
-import { MOODS } from "./index";
+import { MOODS } from "@/utils/moods";
 
 type Period = "7d" | "30d" | "all";
 
