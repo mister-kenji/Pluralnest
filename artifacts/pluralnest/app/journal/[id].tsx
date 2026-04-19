@@ -14,23 +14,26 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import Markdown from "react-native-markdown-display";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
-import { MarkdownText } from "@/components/MarkdownText";
 import { PinModal } from "@/components/PinModal";
 import { EmptyState } from "@/components/EmptyState";
 import { useStorage } from "@/context/StorageContext";
 import { useLock } from "@/context/LockContext";
 import { useColors } from "@/hooks/useColors";
 import { formatDateTime, genId } from "@/utils/helpers";
+import { preprocessMarkdown } from "@/utils/assetMarkdown";
 
 export default function JournalEntryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { data, updateJournalEntries, updateJournalTags, softDelete } = useStorage();
   const { isJournalLocked, lockJournal, unlockJournal } = useLock();
 
@@ -51,6 +54,49 @@ export default function JournalEntryScreen() {
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const member = entry ? data.members.find((m) => m.id === entry.memberId) : null;
+
+  const mdImgW = screenWidth - 40;
+  const mdImgH = Math.round(mdImgW * 0.5);
+  const mdStyles = {
+    body: { color: colors.foreground, fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
+    paragraph: { marginTop: 0, marginBottom: 6 },
+    strong: { fontFamily: "Inter_700Bold" },
+    em: { fontStyle: "italic" as const },
+    heading1: { fontFamily: "Inter_700Bold", fontSize: 20, marginBottom: 4 },
+    heading2: { fontFamily: "Inter_700Bold", fontSize: 17, marginBottom: 4 },
+    heading3: { fontFamily: "Inter_600SemiBold", fontSize: 15, marginBottom: 4 },
+    code_inline: { backgroundColor: colors.secondary, color: colors.foreground, borderRadius: 4 },
+    blockquote: { backgroundColor: colors.secondary, borderLeftColor: colors.border, paddingHorizontal: 10, borderRadius: 4 },
+    hr: { backgroundColor: colors.border, height: 1, marginVertical: 8 },
+    link: { color: colors.primary },
+  };
+  const mdRules = {
+    image: (node: any) => (
+      <Image
+        key={node.key}
+        source={{ uri: node.attributes.src }}
+        contentFit="cover"
+        style={{ width: mdImgW, height: mdImgH, borderRadius: 8, marginVertical: 6 }}
+      />
+    ),
+    fence: (node: any) => {
+      if (node.sourceInfo === "center") {
+        return (
+          <Text
+            key={node.key}
+            style={{ textAlign: "center", color: colors.foreground, fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22, marginBottom: 6 }}
+          >
+            {node.content.trim()}
+          </Text>
+        );
+      }
+      return (
+        <View key={node.key} style={{ backgroundColor: colors.secondary, borderRadius: 8, padding: 10, marginVertical: 4 }}>
+          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: colors.foreground }}>{node.content}</Text>
+        </View>
+      );
+    },
+  };
   const locked = isJournalLocked(id);
 
   const pickCover = async () => {
@@ -284,13 +330,15 @@ export default function JournalEntryScreen() {
               style={[styles.contentInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
               value={editContent}
               onChangeText={setEditContent}
-              placeholder="Write your entry... (supports markdown)"
+              placeholder="Write your entry... (supports markdown, use (@asset_name) for images)"
               placeholderTextColor={colors.mutedForeground}
               multiline
               textAlignVertical="top"
             />
           ) : (
-            <MarkdownText content={entry.content || "No content yet."} />
+            <Markdown style={mdStyles} rules={mdRules}>
+              {preprocessMarkdown(entry.content || "No content yet.", data.assets)}
+            </Markdown>
           )}
 
           {isEditing && (

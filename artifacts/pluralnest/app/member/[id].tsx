@@ -323,6 +323,25 @@ export default function MemberProfileScreen() {
                 <View style={[styles.detailsHRule, { backgroundColor: colors.border }]} />
                 {(data.settings.customGlobalFields ?? []).map((gf, idx) => {
                   const fv = member.customFields.find((c) => c.fieldId === gf.id);
+                  const rawValue = fv?.value ?? "";
+                  const hasAsset = rawValue.includes("(@");
+                  if (hasAsset) {
+                    return (
+                      <View
+                        key={gf.id}
+                        style={[
+                          styles.fieldRowStacked,
+                          idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+                        ]}
+                      >
+                        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{gf.label}</Text>
+                        <View style={[styles.fieldHRule, { backgroundColor: colors.border }]} />
+                        <Markdown style={mdStyles} rules={mdRules}>
+                          {preprocessMarkdown(rawValue, data.assets)}
+                        </Markdown>
+                      </View>
+                    );
+                  }
                   return (
                     <View
                       key={gf.id}
@@ -334,8 +353,8 @@ export default function MemberProfileScreen() {
                       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{gf.label}</Text>
                       {/* Vertical divider */}
                       <View style={[styles.fieldVDivider, { backgroundColor: colors.border }]} />
-                      <Text style={[styles.fieldValue, { color: fv?.value ? colors.foreground : colors.mutedForeground }]}>
-                        {fv?.value || "—"}
+                      <Text style={[styles.fieldValue, { color: rawValue ? colors.foreground : colors.mutedForeground }]}>
+                        {rawValue || "—"}
                       </Text>
                     </View>
                   );
@@ -645,8 +664,16 @@ const styles = StyleSheet.create({
     marginHorizontal: -14,
     paddingHorizontal: 14,
   },
+  fieldRowStacked: {
+    flexDirection: "column",
+    paddingVertical: 10,
+    marginHorizontal: -14,
+    paddingHorizontal: 14,
+    gap: 6,
+  },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1, paddingRight: 12 },
   fieldVDivider: { width: 1, alignSelf: "stretch" },
+  fieldHRule: { height: 1, width: "100%" },
   fieldValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 2, textAlign: "right", paddingLeft: 12 },
   relRow: {
     flexDirection: "row",
