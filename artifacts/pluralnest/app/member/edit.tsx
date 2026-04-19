@@ -5,7 +5,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { Image } from "expo-image";
 import {
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
+import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { useStorage, Member, Relationship, AvatarShape } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
@@ -93,6 +93,7 @@ export default function EditMemberScreen() {
   );
   const [isArchived, setIsArchived] = useState(existingMember?.isArchived ?? false);
   const [avatarShape, setAvatarShape] = useState<AvatarShape>(existingMember?.avatarShape ?? "circle");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRelPicker, setShowRelPicker] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -184,26 +185,16 @@ export default function EditMemberScreen() {
     router.back();
   };
 
-  const deleteMember = () => {
-    Alert.alert(
-      "Delete Member",
-      `Move ${name} to recently deleted? This can be undone within 30 days.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            if (existingMember) {
-              softDelete(existingMember.id, "member", existingMember);
-              updateMembers(data.members.filter((m) => m.id !== existingMember.id));
-            }
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.back();
-          },
-        },
-      ],
-    );
+  const deleteMember = () => setShowDeleteConfirm(true);
+
+  const confirmDeleteMember = () => {
+    setShowDeleteConfirm(false);
+    if (existingMember) {
+      softDelete(existingMember.id, "member", existingMember);
+      updateMembers(data.members.filter((m) => m.id !== existingMember.id));
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    router.back();
   };
 
   const otherMembers = data.members.filter(
@@ -211,8 +202,17 @@ export default function EditMemberScreen() {
   );
 
   return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <ConfirmSheet
+      visible={showDeleteConfirm}
+      title="Delete Member"
+      message={`Move ${name} to recently deleted? This can be undone within 30 days.`}
+      confirmLabel="Delete"
+      onConfirm={confirmDeleteMember}
+      onCancel={() => setShowDeleteConfirm(false)}
+    />
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={{ flex: 1 }}
       contentContainerStyle={{
         paddingTop: topInset + 8,
         paddingBottom: 60,
@@ -557,6 +557,7 @@ export default function EditMemberScreen() {
         </TouchableOpacity>
       )}
     </ScrollView>
+    </View>
   );
 }
 

@@ -5,7 +5,6 @@ import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -19,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
+import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { useStorage, HeadspaceNode } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
@@ -34,6 +34,7 @@ export default function HeadspaceDetailScreen() {
   const { data, updateHeadspaceNodes } = useStorage();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [newType, setNewType] = useState<NodeType>("place");
@@ -100,22 +101,18 @@ export default function HeadspaceDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   };
 
-  const deleteParent = () => {
-    Alert.alert("Delete Entry", `Delete "${node.title}" and all its nested entries?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete", style: "destructive",
-        onPress: () => {
-          const childIds = new Set(children.map((c) => c.id));
-          updateHeadspaceNodes(
-            data.headspaceNodes
-              .filter((n) => n.id !== id && !childIds.has(n.id))
-              .map((n) => ({ ...n, children: n.children.filter((c) => c !== id) }))
-          );
-          router.back();
-        },
-      },
-    ]);
+  const deleteParent = () => setShowDeleteConfirm(true);
+
+  const confirmDeleteParent = () => {
+    setShowDeleteConfirm(false);
+    const childIds = new Set(children.map((c) => c.id));
+    updateHeadspaceNodes(
+      data.headspaceNodes
+        .filter((n) => n.id !== id && !childIds.has(n.id))
+        .map((n) => ({ ...n, children: n.children.filter((c) => c !== id) }))
+    );
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    router.back();
   };
 
   const toggleMember = (mid: string) =>
@@ -168,6 +165,14 @@ export default function HeadspaceDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ConfirmSheet
+        visible={showDeleteConfirm}
+        title="Delete Entry"
+        message={`Delete "${node.title}" and all its nested entries?`}
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteParent}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: topInset + 12, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>

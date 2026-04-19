@@ -5,7 +5,6 @@ import { Image } from "expo-image";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -23,6 +22,7 @@ import { useStorage, ChatMessage, ChatChannel, Member } from "@/context/StorageC
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
 import { persistImage } from "@/utils/persistImage";
+import { ConfirmSheet } from "@/components/ConfirmSheet";
 
 export default function ChatScreen() {
   const colors = useColors();
@@ -38,6 +38,7 @@ export default function ChatScreen() {
   const [activeChannelId, setActiveChannelId] = useState("general");
   const [addingChannel, setAddingChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ type: "message" | "channel"; id: string } | null>(null);
   const listRef = useRef<FlatList>(null);
   const channelScrollRef = useRef<ScrollView>(null);
 
@@ -106,27 +107,8 @@ export default function ChatScreen() {
   };
 
   const deleteChannel = (id: string) => {
-    if (id === "general") {
-      Alert.alert("Can't delete", "The general channel can't be removed.");
-      return;
-    }
-    Alert.alert(
-      "Delete channel",
-      "This will also delete all messages in this channel. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            updateChatChannels(channels.filter((c) => c.id !== id));
-            updateChatMessages(data.chatMessages.filter((m) => (m.channelId ?? "general") !== id));
-            setActiveChannelId("general");
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          },
-        },
-      ],
-    );
+    if (id === "general") return;
+    setPendingDelete({ type: "channel", id });
   };
 
   const sendMessage = () => {
@@ -177,19 +159,22 @@ export default function ChatScreen() {
   };
 
   const deleteMessage = (id: string) => {
-    const msg = data.chatMessages.find((m) => m.id === id);
-    Alert.alert("Delete Message", "Move this message to recently deleted?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          if (msg) softDelete(msg.id, "message", msg);
-          updateChatMessages(data.chatMessages.filter((m) => m.id !== id));
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        },
-      },
-    ]);
+    setPendingDelete({ type: "message", id });
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    if (pendingDelete.type === "message") {
+      const msg = data.chatMessages.find((m) => m.id === pendingDelete.id);
+      if (msg) softDelete(msg.id, "message", msg);
+      updateChatMessages(data.chatMessages.filter((m) => m.id !== pendingDelete.id));
+    } else {
+      updateChatChannels(channels.filter((c) => c.id !== pendingDelete.id));
+      updateChatMessages(data.chatMessages.filter((m) => (m.channelId ?? "general") !== pendingDelete.id));
+      setActiveChannelId("general");
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setPendingDelete(null);
   };
 
   const getMember = (id: string): Member | undefined =>
@@ -283,8 +268,21 @@ export default function ChatScreen() {
     );
   };
 
+  const pendingDeleteLabel = pendingDelete?.type === "channel" ? "Delete Channel" : "Delete Message";
+  const pendingDeleteMsg = pendingDelete?.type === "channel"
+    ? "This will also delete all messages in this channel."
+    : "Move this message to recently deleted?";
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ConfirmSheet
+        visible={!!pendingDelete}
+        title={pendingDeleteLabel}
+        message={pendingDeleteMsg}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
       {/* ── Header ── */}
       <View
         style={[
