@@ -1,13 +1,12 @@
 import { Feather } from "@expo/vector-icons";
-import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
 import {
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -40,8 +39,18 @@ export default function ExportScreen() {
   };
 
   const doExport = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const json = exportData();
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {}
+
+    let json = "";
+    try {
+      json = exportData();
+    } catch {
+      flash(setExportStatus, { type: "error", msg: "Could not read your data." });
+      return;
+    }
+
     const date = new Date().toISOString().slice(0, 10);
     const filename = `pluralnest_backup_${date}.json`;
 
@@ -58,57 +67,60 @@ export default function ExportScreen() {
         URL.revokeObjectURL(url);
         flash(setExportStatus, { type: "success", msg: "Download started!" });
       } catch {
-        flash(setExportStatus, { type: "error", msg: "Download failed — try copying the JSON below." });
+        flash(setExportStatus, { type: "error", msg: "Download failed — copy the JSON below instead." });
       }
       return;
     }
 
     try {
       const path = `${FileSystem.documentDirectory}${filename}`;
-      await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
-      const available = await Sharing.isAvailableAsync();
-      if (available) {
-        await Sharing.shareAsync(path, {
-          mimeType: "application/json",
-          dialogTitle: "Save PluralNest Backup",
-          UTI: "public.json",
-        });
-        flash(setExportStatus, { type: "success", msg: "Backup shared!" });
-      } else {
-        flash(setExportStatus, { type: "success", msg: `Saved to: ${filename}` });
+      await FileSystem.writeAsStringAsync(path, json, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      await Share.share({ url: `file://${path}`, title: "PluralNest Backup" });
+      flash(setExportStatus, { type: "success", msg: "Backup ready to share!" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("cancel") || msg.toLowerCase().includes("cancel")) {
+        return;
       }
-    } catch (e) {
       flash(setExportStatus, { type: "error", msg: "Export failed. Try again." });
     }
   };
 
   const pickAndImport = async () => {
     if (Platform.OS === "web") {
-      const el = document.createElement("input");
-      el.type = "file";
-      el.accept = ".json,application/json,text/plain";
-      el.onchange = async () => {
-        const file = el.files?.[0];
-        if (!file) return;
-        const text = await file.text();
-        setConfirmImport({ json: text });
-      };
-      el.click();
+      try {
+        const el = document.createElement("input");
+        el.type = "file";
+        el.accept = ".json,application/json,text/plain";
+        el.onchange = async () => {
+          const file = el.files?.[0];
+          if (!file) return;
+          const text = await file.text();
+          setConfirmImport({ json: text });
+        };
+        el.click();
+      } catch {
+        flash(setImportStatus, { type: "error", msg: "File picker unavailable on web. Paste JSON below." });
+      }
       return;
     }
+
     try {
+      const DocumentPicker = await import("expo-document-picker");
       const result = await DocumentPicker.getDocumentAsync({
         type: ["application/json", "text/plain", "*/*"],
         copyToCacheDirectory: true,
       });
       if (result.canceled) return;
       const asset = result.assets[0];
-      const json = await FileSystem.readAsStringAsync(asset.uri, {
+      const fileJson = await FileSystem.readAsStringAsync(asset.uri, {
         encoding: FileSystem.EncodingType.UTF8,
       });
-      setConfirmImport({ json });
+      setConfirmImport({ json: fileJson });
     } catch {
-      flash(setImportStatus, { type: "error", msg: "Could not read file." });
+      flash(setImportStatus, { type: "error", msg: "Could not read file. Paste JSON below instead." });
     }
   };
 
@@ -118,10 +130,10 @@ export default function ExportScreen() {
       flash(setImportStatus, { type: "success", msg: "Data imported successfully!" });
       setPasteJson("");
       setShowImport(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
     } else {
       flash(setImportStatus, { type: "error", msg: "Invalid format. Check your file." });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
     }
   };
 
@@ -130,7 +142,12 @@ export default function ExportScreen() {
     setConfirmImport({ json: pasteJson.trim() });
   };
 
-  const previewJson = exportData().slice(0, 300);
+  let previewJson = "";
+  try {
+    previewJson = exportData().slice(0, 300);
+  } catch {
+    previewJson = "(could not load preview)";
+  }
 
   return (
     <ScrollView
@@ -159,7 +176,6 @@ export default function ExportScreen() {
         <View style={{ width: 22 }} />
       </View>
 
-      {/* Info card */}
       <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Feather name="shield" size={26} color={colors.primary} style={{ marginBottom: 8 }} />
         <Text style={[styles.infoTitle, { color: colors.foreground }]}>Privacy First</Text>
@@ -168,7 +184,6 @@ export default function ExportScreen() {
         </Text>
       </View>
 
-      {/* Export section */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Export</Text>
       <View style={[styles.previewBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
         <Text style={[styles.previewText, { color: colors.mutedForeground }]} selectable>
@@ -187,19 +202,36 @@ export default function ExportScreen() {
       </TouchableOpacity>
 
       {exportStatus && (
-        <View style={[styles.statusBar, { backgroundColor: exportStatus.type === "success" ? "#22c55e22" : "#ef444422", borderColor: exportStatus.type === "success" ? "#22c55e55" : "#ef444455" }]}>
-          <Feather name={exportStatus.type === "success" ? "check-circle" : "alert-circle"} size={14} color={exportStatus.type === "success" ? "#22c55e" : "#ef4444"} />
-          <Text style={[styles.statusText, { color: exportStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>{exportStatus.msg}</Text>
+        <View style={[styles.statusBar, {
+          backgroundColor: exportStatus.type === "success" ? "#22c55e22" : "#ef444422",
+          borderColor: exportStatus.type === "success" ? "#22c55e55" : "#ef444455",
+        }]}>
+          <Feather
+            name={exportStatus.type === "success" ? "check-circle" : "alert-circle"}
+            size={14}
+            color={exportStatus.type === "success" ? "#22c55e" : "#ef4444"}
+          />
+          <Text style={[styles.statusText, { color: exportStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>
+            {exportStatus.msg}
+          </Text>
         </View>
       )}
 
-      {/* Import section */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>Import</Text>
 
       {importStatus && (
-        <View style={[styles.statusBar, { backgroundColor: importStatus.type === "success" ? "#22c55e22" : "#ef444422", borderColor: importStatus.type === "success" ? "#22c55e55" : "#ef444455" }]}>
-          <Feather name={importStatus.type === "success" ? "check-circle" : "alert-circle"} size={14} color={importStatus.type === "success" ? "#22c55e" : "#ef4444"} />
-          <Text style={[styles.statusText, { color: importStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>{importStatus.msg}</Text>
+        <View style={[styles.statusBar, {
+          backgroundColor: importStatus.type === "success" ? "#22c55e22" : "#ef444422",
+          borderColor: importStatus.type === "success" ? "#22c55e55" : "#ef444455",
+        }]}>
+          <Feather
+            name={importStatus.type === "success" ? "check-circle" : "alert-circle"}
+            size={14}
+            color={importStatus.type === "success" ? "#22c55e" : "#ef4444"}
+          />
+          <Text style={[styles.statusText, { color: importStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>
+            {importStatus.msg}
+          </Text>
         </View>
       )}
 
@@ -226,7 +258,11 @@ export default function ExportScreen() {
       {showImport && (
         <View style={styles.pasteSection}>
           <TextInput
-            style={[styles.pasteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
+            style={[styles.pasteInput, {
+              color: colors.foreground,
+              borderColor: colors.border,
+              backgroundColor: colors.secondary,
+            }]}
             value={pasteJson}
             onChangeText={setPasteJson}
             placeholder="Paste exported JSON here..."
@@ -249,22 +285,80 @@ export default function ExportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
   title: { fontSize: 22, fontFamily: "Inter_700Bold" },
-  infoCard: { borderRadius: 14, borderWidth: 1, padding: 20, marginBottom: 20, alignItems: "center" },
+  infoCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 20,
+    alignItems: "center",
+  },
   infoTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
   infoDesc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19, textAlign: "center" },
-  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, marginLeft: 2 },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginLeft: 2,
+  },
   previewBox: { borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 10 },
   previewText: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
-  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 14, marginBottom: 12 },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
   btnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  statusBar: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 12 },
+  statusBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 12,
+  },
   statusText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
-  importBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 10 },
+  importBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 10,
+  },
   importBtnText: { fontSize: 15, fontFamily: "Inter_500Medium", flex: 1 },
-  pasteToggle: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 10, borderStyle: "dashed" },
+  pasteToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    borderStyle: "dashed",
+  },
   pasteToggleText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   pasteSection: { gap: 10 },
-  pasteInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 12, fontFamily: "Inter_400Regular", minHeight: 120 },
+  pasteInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    minHeight: 120,
+  },
 });
