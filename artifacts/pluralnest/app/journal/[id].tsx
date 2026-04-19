@@ -5,7 +5,6 @@ import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Markdown from "react-native-markdown-display";
+import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
 import { PinModal } from "@/components/PinModal";
@@ -52,6 +52,7 @@ export default function JournalEntryScreen() {
   const [editLockCode, setEditLockCode] = useState(entry?.lockCode ?? "");
   const [newTagLabel, setNewTagLabel] = useState("");
   const [showPinModal, setShowPinModal] = useState(isJournalLocked(id));
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const member = entry ? data.members.find((m) => m.id === entry.memberId) : null;
@@ -147,21 +148,14 @@ export default function JournalEntryScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const deleteEntry = () => {
-    Alert.alert("Delete Entry", "Move to recently deleted?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          if (entry) {
-            softDelete(entry.id, "journal", entry);
-            updateJournalEntries(data.journalEntries.filter((e) => e.id !== id));
-          }
-          router.back();
-        },
-      },
-    ]);
+  const deleteEntry = () => setConfirmDelete(true);
+
+  const doDelete = () => {
+    if (entry) {
+      softDelete(entry.id, "journal", entry);
+      updateJournalEntries(data.journalEntries.filter((e) => e.id !== id));
+    }
+    router.back();
   };
 
   if (!entry) {
@@ -195,6 +189,15 @@ export default function JournalEntryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ConfirmSheet
+        visible={confirmDelete}
+        title="Delete Entry"
+        message="Move this entry to recently deleted? You can restore it within 30 days."
+        confirmLabel="Delete"
+        onConfirm={() => { setConfirmDelete(false); doDelete(); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60 }}
@@ -203,19 +206,50 @@ export default function JournalEntryScreen() {
           <View style={styles.coverWrap}>
             <Image source={{ uri: entry.coverImage }} style={styles.coverImage} contentFit="cover" />
             <TouchableOpacity
-              style={[styles.backBtnOverlay, { backgroundColor: colors.card + "cc" }]}
+              style={[styles.backBtnOverlay, { backgroundColor: colors.card + "cc", top: topInset + 10 }]}
               onPress={() => router.back()}
             >
               <Feather name="arrow-left" size={20} color={colors.foreground} />
             </TouchableOpacity>
-            {isEditing && (
-              <TouchableOpacity
-                style={[styles.changeCoverBtn, { backgroundColor: colors.card + "cc" }]}
-                onPress={pickCover}
-              >
-                <Feather name="camera" size={16} color={colors.foreground} />
-              </TouchableOpacity>
-            )}
+            <View style={[styles.coverTopRight, { top: topInset + 10 }]}>
+              {isEditing ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.overlayBtn, { backgroundColor: colors.card + "cc" }]}
+                    onPress={pickCover}
+                  >
+                    <Feather name="camera" size={16} color={colors.foreground} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.overlayBtn, { backgroundColor: colors.card + "cc" }]}
+                    onPress={() => setIsEditing(false)}
+                  >
+                    <Feather name="x" size={16} color={colors.foreground} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.overlayBtn, { backgroundColor: colors.primary + "ee" }]}
+                    onPress={save}
+                  >
+                    <Feather name="check" size={16} color={colors.primaryForeground} />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={[styles.overlayBtn, { backgroundColor: colors.card + "cc" }]}
+                    onPress={() => setIsEditing(true)}
+                  >
+                    <Feather name="edit-2" size={16} color={colors.foreground} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.overlayBtn, { backgroundColor: "#ef444488" }]}
+                    onPress={deleteEntry}
+                  >
+                    <Feather name="trash-2" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </View>
         ) : (
           <View
@@ -396,21 +430,23 @@ const styles = StyleSheet.create({
   coverImage: { width: "100%", height: 200 },
   backBtnOverlay: {
     position: "absolute",
-    top: 50,
-    left: 16,
+    left: 12,
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  changeCoverBtn: {
+  coverTopRight: {
     position: "absolute",
-    top: 50,
-    right: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    right: 12,
+    flexDirection: "row",
+    gap: 8,
+  },
+  overlayBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
