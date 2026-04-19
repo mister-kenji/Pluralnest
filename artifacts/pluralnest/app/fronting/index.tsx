@@ -36,6 +36,7 @@ export default function FrontingLogScreen() {
   const insets = useSafeAreaInsets();
   const { data, updateFrontEntries } = useStorage();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showQuickModal, setShowQuickModal] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<FrontStatus>("main");
   const [customStatus, setCustomStatus] = useState("");
@@ -88,6 +89,21 @@ export default function FrontingLogScreen() {
     };
     updateFrontEntries([...data.frontEntries, newEntry]);
     setShowAddModal(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => { submitting.current = false; }, 800);
+  };
+
+  const quickLogFront = (memberId: string) => {
+    if (submitting.current) return;
+    submitting.current = true;
+    const newEntry: FrontEntry = {
+      id: genId(),
+      memberId,
+      status: "main",
+      startTime: Date.now(),
+    };
+    updateFrontEntries([...data.frontEntries, newEntry]);
+    setShowQuickModal(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => { submitting.current = false; }, 800);
   };
@@ -187,6 +203,13 @@ export default function FrontingLogScreen() {
               <Text style={[styles.statsBtnText, { color: colors.mutedForeground }]}>Stats</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.quickBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+              onPress={() => setShowQuickModal(true)}
+            >
+              <Feather name="zap" size={15} color={colors.foreground} />
+              <Text style={[styles.quickBtnText, { color: colors.foreground }]}>Quick</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.addBtn, { backgroundColor: colors.primary }]}
               onPress={openModal}
             >
@@ -235,6 +258,74 @@ export default function FrontingLogScreen() {
         }
         renderItem={renderEntry}
       />
+
+      {/* ── Quick Front Modal ── */}
+      <Modal visible={showQuickModal} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: "#0009" }]}>
+          <View style={[styles.modal, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Quick Front</Text>
+                <Text style={[styles.quickSubtitle, { color: colors.mutedForeground }]}>
+                  Tap a member to log instantly
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowQuickModal(false)}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            {data.members.filter((m) => !m.isArchived).length === 0 ? (
+              <Text style={[styles.quickEmpty, { color: colors.mutedForeground }]}>
+                No members yet — add some first.
+              </Text>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.quickGrid}>
+                  {data.members
+                    .filter((m) => !m.isArchived)
+                    .map((m) => {
+                      const alreadyFronting = data.frontEntries.some(
+                        (e) => e.memberId === m.id && !e.endTime,
+                      );
+                      return (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={[
+                            styles.quickMemberItem,
+                            {
+                              backgroundColor: alreadyFronting ? m.color + "33" : colors.secondary,
+                              borderColor: alreadyFronting ? m.color : colors.border,
+                              opacity: alreadyFronting ? 0.6 : 1,
+                            },
+                          ]}
+                          onPress={() => !alreadyFronting && quickLogFront(m.id)}
+                          disabled={alreadyFronting}
+                        >
+                          <MemberAvatar
+                            name={m.name}
+                            color={m.color}
+                            profileImage={m.profileImage}
+                            size={44}
+                          />
+                          <Text
+                            style={[styles.quickMemberName, { color: colors.foreground }]}
+                            numberOfLines={1}
+                          >
+                            {m.name}
+                          </Text>
+                          {alreadyFronting && (
+                            <View style={[styles.frontingPip, { backgroundColor: "#4ade80" }]} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Log Switch Modal ── */}
       <Modal visible={showAddModal} transparent animationType="slide">
@@ -541,4 +632,48 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   logBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  quickBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  quickBtnText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  quickSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  quickEmpty: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 24 },
+  quickGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  quickMemberItem: {
+    width: "22%",
+    minWidth: 72,
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    gap: 6,
+    position: "relative",
+  },
+  quickMemberName: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+    width: "100%",
+  },
+  frontingPip: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
 });
