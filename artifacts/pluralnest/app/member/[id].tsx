@@ -311,6 +311,42 @@ export default function MemberProfileScreen() {
                 )}
               </View>
             )}
+
+            {/* Linked headspace entries */}
+            {(() => {
+              const linkedNodes = (data.headspaceNodes ?? []).filter((n) =>
+                n.connectedMemberIds?.includes(member.id)
+              );
+              if (linkedNodes.length === 0) return null;
+              const nodeIcon = (type: string) => {
+                if (type === "image") return "image" as const;
+                if (type === "place") return "map-pin" as const;
+                return "file-text" as const;
+              };
+              return (
+                <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>In the Headspace</Text>
+                  {linkedNodes.map((node, idx) => (
+                    <TouchableOpacity
+                      key={node.id}
+                      style={[styles.relRow, { borderTopColor: colors.border }, idx === 0 && { borderTopWidth: 0 }]}
+                      onPress={() => router.push("/headspace")}
+                    >
+                      <View style={[styles.headspaceIconWrap, { backgroundColor: member.color + "22" }]}>
+                        <Feather name={nodeIcon(node.type)} size={16} color={member.color} />
+                      </View>
+                      <View style={styles.relInfo}>
+                        <Text style={[styles.relName, { color: colors.foreground }]}>{node.title || "Untitled"}</Text>
+                        <Text style={[styles.relType, { color: colors.mutedForeground }]}>
+                          {node.type === "image" ? "Image" : node.type === "place" ? "Place" : "Description"}
+                        </Text>
+                      </View>
+                      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              );
+            })()}
           </View>
         )}
 
@@ -569,6 +605,13 @@ const styles = StyleSheet.create({
   relInfo: { flex: 1 },
   relName: { fontSize: 14, fontFamily: "Inter_500Medium" },
   relType: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  headspaceIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   actionRow: { flexDirection: "row", gap: 10 },
   actionBtn: {
     flex: 1,
