@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { TagChip } from "@/components/TagChip";
 import { useStorage, Member, Group } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
+import { useBottomTabClearance } from "@/hooks/useBottomTabClearance";
 import { genId, MEMBER_COLORS } from "@/utils/helpers";
 
 export default function MembersScreen() {
@@ -35,6 +36,7 @@ export default function MembersScreen() {
   const [addingMemberToGroupId, setAddingMemberToGroupId] = useState<string | null>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const bottomClearance = useBottomTabClearance(16);
 
   const activeFronterIds = useMemo(
     () => new Set(data.frontEntries.filter((e) => !e.endTime).map((e) => e.memberId)),
@@ -465,7 +467,7 @@ export default function MembersScreen() {
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: Platform.OS === "web" ? 120 : 90,
+          paddingBottom: bottomClearance,
         }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

@@ -16,6 +16,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { FrontingBadge } from "@/components/FrontingBadge";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
+import { useBottomTabClearance } from "@/hooks/useBottomTabClearance";
 import { formatDuration, formatTime } from "@/utils/helpers";
 
 export default function DashboardScreen() {
@@ -23,6 +24,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { data } = useStorage();
   const lastTapRef = useRef(0);
+  const bottomClearance = useBottomTabClearance(16);
 
   const activeFronters = useMemo(() => {
     const active = data.frontEntries.filter((e) => !e.endTime);
@@ -77,7 +79,7 @@ export default function DashboardScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{
         paddingTop: topInset + 16,
-        paddingBottom: Platform.OS === "web" ? 120 : 90,
+        paddingBottom: bottomClearance,
       }}
       showsVerticalScrollIndicator={false}
     >

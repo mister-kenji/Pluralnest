@@ -17,6 +17,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
+import { useBottomTabClearance } from "@/hooks/useBottomTabClearance";
 
 const COLS = 2;
 const SIDE_PAD = 16;
@@ -31,6 +32,7 @@ export default function JournalsScreen() {
   const { width } = useWindowDimensions();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const bottomClearance = useBottomTabClearance(16);
   const CARD_WIDTH = (width - SIDE_PAD * 2 - GAP) / COLS;
   const BOOK_HEIGHT = CARD_WIDTH * 1.5;
 
@@ -149,7 +151,7 @@ export default function JournalsScreen() {
         contentContainerStyle={{
           paddingHorizontal: SIDE_PAD,
           paddingTop: AVATAR_SIZE / 2 + 16, // room for avatar above first row
-          paddingBottom: Platform.OS === "web" ? 120 : 90,
+          paddingBottom: bottomClearance,
           gap: GAP + 8,
         }}
         showsVerticalScrollIndicator={false}

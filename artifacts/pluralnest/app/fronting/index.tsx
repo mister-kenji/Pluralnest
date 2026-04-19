@@ -57,40 +57,28 @@ export default function FrontingLogScreen() {
 
   const getMember = (id: string) => data.members.find((m) => m.id === id);
 
-  const logSwitch = () => {
-    if (!selectedMemberId) return;
-    const now = Date.now();
+  const submitting = React.useRef(false);
 
-    const updatedEntries = [...data.frontEntries];
-    if (switchNote) {
-      const noteEntry: FrontEntry = {
-        id: genId(),
-        memberId: selectedMemberId,
-        status: selectedStatus,
-        customStatus: customStatus || undefined,
-        startTime: now,
-        note: switchNote,
-        reactions: [],
-      } as unknown as FrontEntry;
-      updatedEntries.push(noteEntry);
-    }
+  const logSwitch = () => {
+    if (!selectedMemberId || submitting.current) return;
+    submitting.current = true;
 
     const newEntry: FrontEntry = {
       id: genId(),
       memberId: selectedMemberId,
       status: selectedStatus,
       customStatus: customStatus || undefined,
-      startTime: now,
+      startTime: Date.now(),
       note: switchNote || undefined,
     };
-    updatedEntries.push(newEntry);
-    updateFrontEntries(updatedEntries);
+    updateFrontEntries([...data.frontEntries, newEntry]);
     setShowAddModal(false);
     setSelectedMemberId("");
     setSelectedStatus("main");
     setCustomStatus("");
     setSwitchNote("");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => { submitting.current = false; }, 800);
   };
 
   const endFront = (entryId: string) => {

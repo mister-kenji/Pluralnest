@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
+import { useBottomTabClearance } from "@/hooks/useBottomTabClearance";
 
 type MenuItem = {
   icon: keyof typeof Feather.glyphMap;
@@ -44,13 +45,14 @@ export default function MoreScreen() {
   const { data } = useStorage();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const bottomClearance = useBottomTabClearance(16);
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{
         paddingTop: topInset + 16,
-        paddingBottom: Platform.OS === "web" ? 120 : 90,
+        paddingBottom: bottomClearance,
         paddingHorizontal: 16,
       }}
       showsVerticalScrollIndicator={false}

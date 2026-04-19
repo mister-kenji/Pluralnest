@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -22,8 +23,6 @@ import { useStorage, ChatMessage, Member } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
 
-const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : 0;
-
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -39,6 +38,15 @@ export default function ChatScreen() {
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 0 : insets.bottom;
+  // Classic tab bar = position:absolute, height: 60 + insets.bottom (matches _layout.tsx).
+  // NativeTabs (iOS liquid glass) manage their own safe area — offset is 0.
+  const usesNativeTabs = isLiquidGlassAvailable();
+  const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : usesNativeTabs ? 0 : 60 + bottomInset;
+  // clearance = space above the bottom chrome for absolutely-positioned elements.
+  // On NativeTabs the system already insets content, so only the home-indicator matters.
+  const tabClearance = usesNativeTabs ? bottomInset : TAB_BAR_HEIGHT;
+  // padding inside the inputRow — NativeTabs needs bottomInset since container is at 0.
+  const inputPaddingBottom = usesNativeTabs ? bottomInset + 10 : 10;
 
   const selectedMember = useMemo(
     () => data.members.find((m) => m.id === selectedMemberId),
@@ -271,7 +279,7 @@ export default function ChatScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.messageList,
-              { paddingBottom: TAB_BAR_HEIGHT + bottomInset + 70 },
+              { paddingBottom: tabClearance + 70 },
             ]}
             onContentSizeChange={() => {
               listRef.current?.scrollToEnd({ animated: false });
@@ -292,7 +300,7 @@ export default function ChatScreen() {
                 {
                   backgroundColor: colors.secondary,
                   borderTopColor: colors.border,
-                  bottom: TAB_BAR_HEIGHT + bottomInset + 56,
+                  bottom: tabClearance + 56,
                 },
               ]}
             >
@@ -312,7 +320,7 @@ export default function ChatScreen() {
               {
                 backgroundColor: colors.card,
                 borderTopColor: colors.border,
-                paddingBottom: bottomInset + 10,
+                paddingBottom: inputPaddingBottom,
                 bottom: TAB_BAR_HEIGHT,
               },
             ]}
@@ -369,7 +377,7 @@ export default function ChatScreen() {
                 {
                   backgroundColor: colors.card,
                   borderColor: colors.border,
-                  bottom: TAB_BAR_HEIGHT + bottomInset + 66,
+                  bottom: tabClearance + 66,
                 },
               ]}
             >
