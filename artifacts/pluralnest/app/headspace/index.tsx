@@ -174,7 +174,7 @@ export default function HeadspaceScreen() {
       />
 
       {/* ── Add Root Node Modal ── */}
-      <Modal visible={showAddModal} transparent animationType="slide">
+      {showAddModal && <Modal visible transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: "#0009" }]}>
           <ScrollView style={[styles.modal, { backgroundColor: colors.card, borderColor: colors.border }]} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
@@ -249,7 +249,7 @@ export default function HeadspaceScreen() {
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </Modal>
+      </Modal>}
     </View>
   );
 }

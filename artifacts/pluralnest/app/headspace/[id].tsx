@@ -146,7 +146,11 @@ export default function HeadspaceDetailScreen() {
               <Feather name={cm.icon as any} size={11} color={cm.color} />
               <Text style={[styles.typeLabel, { color: cm.color }]}>{cm.label}</Text>
             </View>
-            <TouchableOpacity onPress={() => deleteChild(child.id)} hitSlop={8}>
+            <TouchableOpacity
+              onPress={() => deleteChild(child.id)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.deleteBtn}
+            >
               <Feather name="trash-2" size={15} color={colors.destructive} />
             </TouchableOpacity>
           </View>
@@ -240,7 +244,7 @@ export default function HeadspaceDetailScreen() {
       </ScrollView>
 
       {/* ── Add Nested Node Modal ── */}
-      <Modal visible={showAddModal} transparent animationType="slide">
+      {showAddModal && <Modal visible transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: "#0009" }]}>
           <ScrollView style={[styles.modal, { backgroundColor: colors.card, borderColor: colors.border }]} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
@@ -315,7 +319,7 @@ export default function HeadspaceDetailScreen() {
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </Modal>
+      </Modal>}
     </View>
   );
 }
@@ -347,6 +351,7 @@ const styles = StyleSheet.create({
   childInner: { flex: 1, padding: 12 },
   childImage: { width: "100%", height: 100, borderRadius: 6, marginBottom: 8 },
   childHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  deleteBtn: { padding: 4 },
   childTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
   childDesc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
 
