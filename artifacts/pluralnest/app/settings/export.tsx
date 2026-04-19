@@ -4,7 +4,7 @@ import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import * as Sharing from "expo-sharing";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -31,7 +31,6 @@ export default function ExportScreen() {
   const [exportStatus, setExportStatus] = useState<Status>(null);
   const [importStatus, setImportStatus] = useState<Status>(null);
   const [confirmImport, setConfirmImport] = useState<{ json: string } | null>(null);
-  const webFileRef = useRef<HTMLInputElement | null>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -85,7 +84,16 @@ export default function ExportScreen() {
 
   const pickAndImport = async () => {
     if (Platform.OS === "web") {
-      webFileRef.current?.click();
+      const el = document.createElement("input");
+      el.type = "file";
+      el.accept = ".json,application/json,text/plain";
+      el.onchange = async () => {
+        const file = el.files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        setConfirmImport({ json: text });
+      };
+      el.click();
       return;
     }
     try {
@@ -120,14 +128,6 @@ export default function ExportScreen() {
   const doImportFromPaste = () => {
     if (!pasteJson.trim()) return;
     setConfirmImport({ json: pasteJson.trim() });
-  };
-
-  const onWebFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    setConfirmImport({ json: text });
-    if (webFileRef.current) webFileRef.current.value = "";
   };
 
   const previewJson = exportData().slice(0, 300);
@@ -202,19 +202,6 @@ export default function ExportScreen() {
           <Text style={[styles.statusText, { color: importStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>{importStatus.msg}</Text>
         </View>
       )}
-
-      {Platform.OS === "web" ? (
-        <>
-          {/* Hidden web file input */}
-          <input
-            ref={webFileRef}
-            type="file"
-            accept=".json,application/json"
-            style={{ display: "none" }}
-            onChange={onWebFileChange}
-          />
-        </>
-      ) : null}
 
       <TouchableOpacity
         style={[styles.importBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
