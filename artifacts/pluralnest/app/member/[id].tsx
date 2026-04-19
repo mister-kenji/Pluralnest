@@ -149,29 +149,32 @@ export default function MemberProfileScreen() {
       >
         {/* ── Banner ── */}
         <View style={[styles.banner, { paddingTop: topInset + 10 }]}>
-          {/* Banner image or color strip */}
-          {member.bannerImage ? (
-            <Image
-              source={{ uri: member.bannerImage }}
-              contentFit="cover"
-              style={[styles.bannerStrip, { top: 0 }]}
-            />
-          ) : (
-            <View
-              style={[
-                styles.bannerStrip,
-                {
-                  backgroundColor:
-                    member.bannerColor === "none"
-                      ? "#3d3d3d"
-                      : member.bannerColor
-                      ? member.bannerColor + "cc"
-                      : member.color + "55",
-                  top: 0,
-                },
-              ]}
-            />
-          )}
+          {/* Banner image or color strip — in its own clipping wrapper so the
+              outer banner does NOT need overflow:hidden (which would break
+              expo-image inside the avatar's own overflow:hidden circle). */}
+          <View style={styles.bannerStripClip}>
+            {member.bannerImage ? (
+              <Image
+                source={{ uri: member.bannerImage }}
+                contentFit="cover"
+                style={StyleSheet.absoluteFill}
+              />
+            ) : (
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  {
+                    backgroundColor:
+                      member.bannerColor === "none"
+                        ? "#3d3d3d"
+                        : member.bannerColor
+                        ? member.bannerColor + "cc"
+                        : member.color + "55",
+                  },
+                ]}
+              />
+            )}
+          </View>
 
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: colors.card + "cc" }]}
@@ -426,13 +429,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     alignItems: "center",
     position: "relative",
-    overflow: "hidden",
+    /* No overflow:hidden here — it breaks expo-image inside nested overflow:hidden views */
   },
-  bannerStrip: {
+  bannerStripClip: {
     position: "absolute",
     left: 0,
     right: 0,
+    top: 0,
     height: 180,
+    overflow: "hidden",
   },
   backBtn: {
     position: "absolute",
