@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "Pluralnest",
+    "name": "PluralNest",
     "slug": "pluralnest",
+    "owner": "kenjibro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -15,10 +16,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pluralnest.app"
+      "bundleIdentifier": "com.kenjibro.pluralnest"
     },
     "android": {
-      "package": "com.pluralnest.app"
+      "package": "com.kenjibro.pluralnest"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -36,6 +37,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "362178ee-c8bd-4142-a824-fbbd6ed663e6"
+      }
     }
   }
 }
