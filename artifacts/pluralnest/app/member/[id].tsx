@@ -202,12 +202,6 @@ export default function MemberProfileScreen() {
           />
 
           <Text style={[styles.name, { color: colors.foreground }]}>{member.name}</Text>
-          {member.pronouns ? (
-            <Text style={[styles.pronouns, { color: colors.mutedForeground }]}>{member.pronouns}</Text>
-          ) : null}
-          {member.role ? (
-            <Text style={[styles.role, { color: member.color }]}>{member.role}</Text>
-          ) : null}
           {activeFront && (
             <View style={styles.frontingRow}>
               <View style={[styles.frontDot, { backgroundColor: "#4ade80" }]} />
@@ -226,6 +220,24 @@ export default function MemberProfileScreen() {
         {/* ── Profile Tab ── */}
         {activeTab === "profile" && (
           <View style={styles.body}>
+            {/* Pronouns + Role cards */}
+            {(member.pronouns || member.role) && (
+              <View style={styles.metaRow}>
+                {member.pronouns ? (
+                  <View style={[styles.card, styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Pronouns</Text>
+                    <Text style={[styles.metaValue, { color: colors.foreground }]}>{member.pronouns}</Text>
+                  </View>
+                ) : null}
+                {member.role ? (
+                  <View style={[styles.card, styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Role</Text>
+                    <Text style={[styles.metaValue, { color: member.color }]}>{member.role}</Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
+
             {member.description ? (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
@@ -461,8 +473,9 @@ const styles = StyleSheet.create({
   },
   avatar: { marginTop: 40, marginBottom: 12 },
   name: { fontSize: 24, fontFamily: "Inter_700Bold", textAlign: "center" },
-  pronouns: { fontSize: 14, fontFamily: "Inter_400Regular", marginTop: 4 },
-  role: { fontSize: 13, fontFamily: "Inter_500Medium", marginTop: 2 },
+  metaRow: { flexDirection: "row", gap: 10 },
+  metaCard: { flex: 1 },
+  metaValue: { fontSize: 15, fontFamily: "Inter_500Medium" },
   frontingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
   frontDot: { width: 8, height: 8, borderRadius: 4 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 8, gap: 4 },
