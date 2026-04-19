@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,14 +17,22 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
-import { formatDate } from "@/utils/helpers";
+
+const COLS = 2;
+const SIDE_PAD = 16;
+const GAP = 12;
+const AVATAR_SIZE = 56;
+const AVATAR_OVERLAP = AVATAR_SIZE * 0.55; // how far avatar dips into the book top
 
 export default function JournalsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { data } = useStorage();
+  const { width } = useWindowDimensions();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const CARD_WIDTH = (width - SIDE_PAD * 2 - GAP) / COLS;
+  const BOOK_HEIGHT = CARD_WIDTH * 1.5;
 
   const memberJournals = useMemo(() => {
     return data.members
@@ -42,6 +51,82 @@ export default function JournalsScreen() {
       });
   }, [data.members, data.journalEntries]);
 
+  const renderBook = ({ item: { member, count } }: { item: typeof memberJournals[0] }) => (
+    <TouchableOpacity
+      style={[styles.cell, { width: CARD_WIDTH }]}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push(`/journal/member/${member.id}`);
+      }}
+      activeOpacity={0.8}
+    >
+      {/* Avatar floating above the book — rendered first so it appears on top */}
+      <View style={styles.avatarRow}>
+        <MemberAvatar
+          name={member.name}
+          color={member.color}
+          profileImage={member.profileImage}
+          size={AVATAR_SIZE}
+          shape={member.avatarShape}
+          style={{ zIndex: 2 }}
+        />
+      </View>
+
+      {/* Book cover */}
+      <View
+        style={[
+          styles.book,
+          {
+            width: CARD_WIDTH,
+            height: BOOK_HEIGHT,
+            backgroundColor: colors.card,
+            borderColor: member.color + "66",
+            marginTop: -AVATAR_OVERLAP,
+          },
+        ]}
+      >
+        {/* Left spine strip */}
+        <View style={[styles.spine, { backgroundColor: member.color }]} />
+
+        {/* Cover face */}
+        <View style={[styles.face, { backgroundColor: member.color + "12" }]}>
+          {/* Space for avatar overlap at top */}
+          <View style={{ height: AVATAR_OVERLAP + 10 }} />
+
+          {/* Decorative ruled lines — like a journal page */}
+          <View style={styles.ruledLines}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <View
+                key={i}
+                style={[styles.ruleLine, { backgroundColor: member.color + "30" }]}
+              />
+            ))}
+          </View>
+
+          {/* Book-open icon in centre */}
+          <View style={styles.bookIconWrap}>
+            <Feather name="book-open" size={30} color={member.color} style={{ opacity: 0.55 }} />
+          </View>
+
+          <View style={{ flex: 1 }} />
+
+          {/* Entry count badge at bottom */}
+          <View style={[styles.countBadge, { backgroundColor: member.color + "22", borderColor: member.color + "44" }]}>
+            <Feather name="edit-3" size={10} color={member.color} />
+            <Text style={[styles.countText, { color: member.color }]}>
+              {count} {count === 1 ? "entry" : "entries"}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Name label below */}
+      <Text style={[styles.bookLabel, { color: colors.foreground }]} numberOfLines={2}>
+        {member.name}{"'"}s Journal
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
@@ -59,10 +144,13 @@ export default function JournalsScreen() {
       <FlatList
         data={memberJournals}
         keyExtractor={(item) => item.member.id}
+        numColumns={COLS}
+        columnWrapperStyle={{ gap: GAP }}
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 12,
+          paddingHorizontal: SIDE_PAD,
+          paddingTop: AVATAR_SIZE / 2 + 16, // room for avatar above first row
           paddingBottom: Platform.OS === "web" ? 120 : 90,
+          gap: GAP + 8,
         }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -73,79 +161,7 @@ export default function JournalsScreen() {
             action={{ label: "Add Member", onPress: () => router.push("/member/edit") }}
           />
         }
-        renderItem={({ item: { member, entries, count, latest } }) => (
-          <TouchableOpacity
-            style={[styles.journalBook, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(`/journal/member/${member.id}`);
-            }}
-          >
-            <View style={[styles.spine, { backgroundColor: member.color + "66" }]} />
-            <View style={styles.bookBody}>
-              <View style={styles.bookHeader}>
-                <MemberAvatar
-                  name={member.name}
-                  color={member.color}
-                  profileImage={member.profileImage}
-                  size={40}
-                />
-                <View style={styles.bookInfo}>
-                  <Text style={[styles.memberName, { color: colors.foreground }]}>
-                    {member.name}
-                  </Text>
-                  {member.pronouns ? (
-                    <Text style={[styles.pronouns, { color: colors.mutedForeground }]}>
-                      {member.pronouns}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={styles.bookMeta}>
-                  <View style={[styles.countBadge, { backgroundColor: member.color + "22", borderColor: member.color + "44" }]}>
-                    <Feather name="book" size={11} color={member.color} />
-                    <Text style={[styles.countText, { color: member.color }]}>
-                      {count}
-                    </Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-                </View>
-              </View>
-
-              {latest ? (
-                <View style={[styles.latestEntry, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.latestLabel, { color: colors.mutedForeground }]}>
-                    Latest
-                  </Text>
-                  <View style={styles.latestRow}>
-                    <Text
-                      style={[styles.latestTitle, { color: colors.foreground }]}
-                      numberOfLines={1}
-                    >
-                      {latest.title || "Untitled"}
-                    </Text>
-                    <Text style={[styles.latestDate, { color: colors.mutedForeground }]}>
-                      {formatDate(latest.updatedAt)}
-                    </Text>
-                  </View>
-                  {latest.content ? (
-                    <Text
-                      style={[styles.latestPreview, { color: colors.mutedForeground }]}
-                      numberOfLines={1}
-                    >
-                      {latest.content.replace(/[#*`]/g, "")}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : (
-                <View style={[styles.emptyBook, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.emptyBookText, { color: colors.mutedForeground }]}>
-                    No entries yet — tap to start writing
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        )}
+        renderItem={renderBook}
       />
     </View>
   );
@@ -160,53 +176,63 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 26, fontFamily: "Inter_700Bold", marginBottom: 2 },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  journalBook: {
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 12,
+
+  cell: {
+    alignItems: "center",
+  },
+  avatarRow: {
+    zIndex: 2,
+    alignItems: "center",
+  },
+  book: {
+    borderRadius: 10,
+    borderWidth: 1.5,
     flexDirection: "row",
     overflow: "hidden",
+    zIndex: 1,
+    /* subtle shadow */
+    shadowColor: "#000",
+    shadowOffset: { width: 2, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  spine: { width: 6 },
-  bookBody: { flex: 1, padding: 14 },
-  bookHeader: {
-    flexDirection: "row",
+  spine: {
+    width: 10,
+  },
+  face: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  ruledLines: {
+    gap: 7,
+    paddingHorizontal: 2,
+    marginBottom: 8,
+  },
+  ruleLine: {
+    height: 1.5,
+    borderRadius: 1,
+  },
+  bookIconWrap: {
     alignItems: "center",
-    gap: 12,
-    marginBottom: 10,
+    marginTop: 4,
   },
-  bookInfo: { flex: 1 },
-  memberName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  pronouns: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
-  bookMeta: { flexDirection: "row", alignItems: "center", gap: 8 },
   countBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    alignSelf: "center",
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
   },
-  countText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  latestEntry: { borderTopWidth: 1, paddingTop: 10 },
-  latestLabel: {
-    fontSize: 10,
+  countText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  bookLabel: {
+    marginTop: 8,
+    fontSize: 13,
     fontFamily: "Inter_600SemiBold",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 4,
+    textAlign: "center",
   },
-  latestRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 2,
-  },
-  latestTitle: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
-  latestDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  latestPreview: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 16 },
-  emptyBook: { borderTopWidth: 1, paddingTop: 10 },
-  emptyBookText: { fontSize: 13, fontFamily: "Inter_400Regular", fontStyle: "italic" },
 });
