@@ -22,7 +22,7 @@ import { TagChip } from "@/components/TagChip";
 import { EmptyState } from "@/components/EmptyState";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
-import { formatDate } from "@/utils/helpers";
+import { formatDate, formatTime, formatDuration } from "@/utils/helpers";
 
 type Tab = "profile" | "info" | "notes";
 
@@ -250,6 +250,59 @@ export default function MemberProfileScreen() {
                 </Text>
               </View>
             )}
+
+            {/* ── Front History ── */}
+            {(() => {
+              const allEntries = data.frontEntries
+                .filter((e) => e.memberId === member.id && e.endTime)
+                .sort((a, b) => b.startTime - a.startTime);
+              const LIMIT = 15;
+              const shown = allEntries.slice(0, LIMIT);
+              return (
+                <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>Front History</Text>
+                  {shown.length === 0 ? (
+                    <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>
+                      No past front entries recorded yet.
+                    </Text>
+                  ) : (
+                    shown.map((entry, idx) => (
+                      <View
+                        key={entry.id}
+                        style={[
+                          styles.frontHistoryRow,
+                          { borderTopColor: colors.border },
+                          idx === 0 && { borderTopWidth: 0, marginTop: 0, paddingTop: 0 },
+                        ]}
+                      >
+                        <View style={styles.frontHistoryMain}>
+                          <View style={styles.frontHistoryTop}>
+                            <Text style={[styles.frontHistoryDate, { color: colors.foreground }]}>
+                              {formatDate(entry.startTime)}
+                            </Text>
+                            <FrontingBadge status={entry.status} customStatus={entry.customStatus} />
+                          </View>
+                          <Text style={[styles.frontHistoryTime, { color: colors.mutedForeground }]}>
+                            {formatTime(entry.startTime)} → {entry.endTime ? formatTime(entry.endTime) : "now"}
+                            {"  ·  "}{formatDuration((entry.endTime ?? Date.now()) - entry.startTime)}
+                          </Text>
+                          {entry.note ? (
+                            <Text style={[styles.frontHistoryNote, { color: colors.mutedForeground }]}>
+                              {entry.note}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    ))
+                  )}
+                  {allEntries.length > LIMIT && (
+                    <Text style={[styles.frontHistoryMore, { color: colors.mutedForeground }]}>
+                      Showing {LIMIT} most recent — {allEntries.length - LIMIT} older entries in the Front Log
+                    </Text>
+                  )}
+                </View>
+              );
+            })()}
 
           </View>
         )}
@@ -611,6 +664,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+  },
+  frontHistoryRow: {
+    borderTopWidth: 1,
+    marginTop: 10,
+    paddingTop: 10,
+  },
+  frontHistoryMain: { flex: 1 },
+  frontHistoryTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 3,
+  },
+  frontHistoryDate: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  frontHistoryTime: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  frontHistoryNote: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    fontStyle: "italic",
+    marginTop: 4,
+  },
+  frontHistoryMore: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    marginTop: 12,
+    fontStyle: "italic",
   },
   actionRow: { flexDirection: "row", gap: 10 },
   actionBtn: {
