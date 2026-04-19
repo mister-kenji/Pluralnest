@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -17,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
+import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { useStorage, ForumReply, ForumPost } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
@@ -27,8 +27,11 @@ export default function ForumDetailScreen() {
   const insets = useSafeAreaInsets();
   const { data, updateForumPosts, softDelete } = useStorage();
   const [replyText, setReplyText] = useState("");
-  const [replierMemberId, setReplierMemberId] = useState(data.members[0]?.id ?? "");
+  const [replierMemberId, setReplierMemberId] = useState(
+    data.members.find((m) => !m.isArchived)?.id ?? data.members[0]?.id ?? "",
+  );
   const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const post = useMemo(() => data.forumPosts.find((p) => p.id === id), [data.forumPosts, id]);
@@ -44,8 +47,8 @@ export default function ForumDetailScreen() {
   }
 
   const vote = (optionId: string) => {
-    const updated = updateForumPosts(
-      data.forumPosts.map((p) =>
+    updateForumPosts(
+      (data.forumPosts ?? []).map((p) =>
         p.id === id
           ? {
               ...p,
@@ -71,7 +74,7 @@ export default function ForumDetailScreen() {
       createdAt: Date.now(),
     };
     updateForumPosts(
-      data.forumPosts.map((p) =>
+      (data.forumPosts ?? []).map((p) =>
         p.id === id ? { ...p, replies: [...p.replies, reply], updatedAt: Date.now() } : p,
       ),
     );
@@ -79,26 +82,28 @@ export default function ForumDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const deletePost = () => {
-    Alert.alert("Delete Post", "Move this post to recently deleted?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          softDelete(post.id, "forum", post);
-          updateForumPosts(data.forumPosts.filter((p) => p.id !== id));
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          router.back();
-        },
-      },
-    ]);
+  const deletePost = () => setShowDeleteConfirm(true);
+
+  const confirmDeletePost = () => {
+    setShowDeleteConfirm(false);
+    softDelete(post.id, "forum", post);
+    updateForumPosts(data.forumPosts.filter((p) => p.id !== id));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    router.back();
   };
 
   const totalVotes = post.pollOptions?.reduce((acc, o) => acc + o.votes.length, 0) ?? 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ConfirmSheet
+        visible={showDeleteConfirm}
+        title="Delete Post"
+        message="Move this post to recently deleted? This can be undone within 30 days."
+        confirmLabel="Delete"
+        onConfirm={confirmDeletePost}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
       <View
         style={[
           styles.topBar,

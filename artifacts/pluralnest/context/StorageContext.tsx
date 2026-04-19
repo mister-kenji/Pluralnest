@@ -284,13 +284,23 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           const migratedChannels = hasGeneral
             ? parsedChannels
             : [DEFAULT_CHANNEL, ...parsedChannels];
+          const savedFeaturesEnabled = (savedSettings as Partial<AppSettings>).featuresEnabled ?? {};
           setData({
             ...defaultData,
             ...parsed,
+            forumPosts: parsed.forumPosts ?? [],
+            groups: parsed.groups ?? [],
+            assets: parsed.assets ?? [],
+            deletedItems: parsed.deletedItems ?? [],
+            headspaceNodes: parsed.headspaceNodes ?? [],
             chatChannels: migratedChannels,
             settings: {
               ...defaultSettings,
               ...savedSettings,
+              featuresEnabled: {
+                ...defaultSettings.featuresEnabled,
+                ...savedFeaturesEnabled,
+              },
               hasCompletedOnboarding:
                 (savedSettings as Partial<AppSettings>).hasCompletedOnboarding ??
                 hasExistingData,

@@ -25,7 +25,7 @@ export default function CreateForumScreen() {
   const { data, updateForumPosts } = useStorage();
 
   const [selectedMemberId, setSelectedMemberId] = useState<string>(
-    paramMemberId ?? (data.members[0]?.id ?? ""),
+    paramMemberId ?? data.members.find((m) => !m.isArchived)?.id ?? data.members[0]?.id ?? "",
   );
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -53,7 +53,7 @@ export default function CreateForumScreen() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    updateForumPosts([...data.forumPosts, post]);
+    updateForumPosts([...(data.forumPosts ?? []), post]);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.replace(`/forums/${post.id}`);
   };

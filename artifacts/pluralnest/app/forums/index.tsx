@@ -30,7 +30,7 @@ export default function ForumsScreen() {
 
   const sorted = useMemo(() => {
     const q = search.toLowerCase();
-    return data.forumPosts
+    return (data.forumPosts ?? [])
       .filter((p) => !q || p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }, [data.forumPosts, search]);
@@ -117,7 +117,7 @@ export default function ForumsScreen() {
               <Text style={[styles.forumPreview, { color: colors.mutedForeground }]} numberOfLines={2}>
                 {item.content}
               </Text>
-              {item.tags.length > 0 && (
+              {(item.tags?.length ?? 0) > 0 && (
                 <View style={styles.tagRow}>
                   {item.tags.slice(0, 3).map((t) => (
                     <TagChip key={t} label={t} color={colors.primary} small />
