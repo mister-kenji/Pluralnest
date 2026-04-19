@@ -148,7 +148,7 @@ export default function MemberProfileScreen() {
         contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
       >
         {/* ── Banner ── */}
-        <View style={[styles.banner, { paddingTop: topInset + 56 }]}>
+        <View style={[styles.banner, { paddingTop: topInset + 10 }]}>
           {/* Banner image or color strip — in its own clipping wrapper so the
               outer banner does NOT need overflow:hidden (which would break
               expo-image inside the avatar's own overflow:hidden circle). */}
