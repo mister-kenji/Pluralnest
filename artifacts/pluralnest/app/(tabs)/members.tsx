@@ -21,6 +21,8 @@ import { useColors } from "@/hooks/useColors";
 import { useBottomTabClearance } from "@/hooks/useBottomTabClearance";
 import { genId, MEMBER_COLORS } from "@/utils/helpers";
 
+const GROUP_COLORS = MEMBER_COLORS;
+
 export default function MembersScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -34,6 +36,8 @@ export default function MembersScreen() {
   const [addingSubgroupToId, setAddingSubgroupToId] = useState<string | null>(null);
   const [newSubgroupName, setNewSubgroupName] = useState("");
   const [addingMemberToGroupId, setAddingMemberToGroupId] = useState<string | null>(null);
+  const [newGroupColor, setNewGroupColor] = useState(GROUP_COLORS[0]);
+  const [editingColorForGroupId, setEditingColorForGroupId] = useState<string | null>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomClearance = useBottomTabClearance(16);
@@ -102,7 +106,7 @@ export default function MembersScreen() {
     const group: Group = {
       id: genId(),
       name: newGroupName.trim(),
-      color: colors.primary,
+      color: newGroupColor,
       memberIds: [],
       subGroupIds: [],
       showMembersInRoot: true,
@@ -111,8 +115,15 @@ export default function MembersScreen() {
     };
     updateGroups([...data.groups, group]);
     setNewGroupName("");
+    setNewGroupColor(GROUP_COLORS[0]);
     setShowAddGroup(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const updateGroupColor = (groupId: string, color: string) => {
+    updateGroups(data.groups.map((g) => (g.id === groupId ? { ...g, color } : g)));
+    setEditingColorForGroupId(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const addSubgroup = (parentId: string) => {
@@ -224,6 +235,8 @@ export default function MembersScreen() {
     const indent = depth * 14;
     const isAddingHere = addingSubgroupToId === group.id;
 
+    const isEditingColor = editingColorForGroupId === group.id;
+
     return (
       <View key={group.id} style={[styles.groupWrap, depth > 0 && { marginLeft: indent }]}>
         <TouchableOpacity
@@ -233,9 +246,21 @@ export default function MembersScreen() {
             borderLeftWidth: depth > 0 ? 3 : 1,
             borderLeftColor: depth > 0 ? group.color : colors.border,
           }]}
-          onPress={() => toggleGroup(group.id)}
+          onPress={() => {
+            if (isEditingColor) { setEditingColorForGroupId(null); return; }
+            toggleGroup(group.id);
+          }}
         >
-          <View style={[styles.groupDot, { backgroundColor: group.color }]} />
+          <TouchableOpacity
+            hitSlop={8}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              setEditingColorForGroupId(isEditingColor ? null : group.id);
+              setExpandedGroups((prev) => new Set([...prev, group.id]));
+            }}
+          >
+            <View style={[styles.groupDot, { backgroundColor: group.color }]} />
+          </TouchableOpacity>
           <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
           {subGroups.length > 0 && (
             <Text style={[styles.subgroupBadge, { color: colors.mutedForeground }]}>
@@ -274,6 +299,30 @@ export default function MembersScreen() {
             color={colors.mutedForeground}
           />
         </TouchableOpacity>
+
+        {isEditingColor && (
+          <View style={[styles.colorPickerPanel, { backgroundColor: colors.card, borderColor: group.color + "55" }]}>
+            <View style={styles.colorPickerRow}>
+              <Feather name="droplet" size={13} color={group.color} />
+              <Text style={[styles.colorPickerLabel, { color: colors.mutedForeground }]}>
+                Group colour
+              </Text>
+            </View>
+            <View style={styles.colorSwatchGrid}>
+              {GROUP_COLORS.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: c },
+                    group.color === c && styles.colorSwatchSelected,
+                  ]}
+                  onPress={() => updateGroupColor(group.id, c)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
 
         {isExpanded && (
           <View style={styles.groupMembers}>
@@ -435,28 +484,44 @@ export default function MembersScreen() {
         )}
 
         {showAddGroup && (
-          <View style={[styles.quickAdd, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TextInput
-              style={[styles.quickAddInput, { color: colors.foreground, borderColor: colors.border }]}
-              placeholder="Group name..."
-              placeholderTextColor={colors.mutedForeground}
-              value={newGroupName}
-              onChangeText={setNewGroupName}
-              autoFocus
-              onSubmitEditing={addGroup}
-            />
-            <TouchableOpacity
-              style={[styles.quickAddBtn, { backgroundColor: colors.primary }]}
-              onPress={addGroup}
-            >
-              <Feather name="plus" size={18} color={colors.primaryForeground} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickAddBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => setShowAddGroup(false)}
-            >
-              <Feather name="x" size={18} color={colors.foreground} />
-            </TouchableOpacity>
+          <View style={[styles.quickAdd, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: "column", gap: 10 }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={[styles.groupDotPreview, { backgroundColor: newGroupColor }]} />
+              <TextInput
+                style={[styles.quickAddInput, { color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+                placeholder="Group name..."
+                placeholderTextColor={colors.mutedForeground}
+                value={newGroupName}
+                onChangeText={setNewGroupName}
+                autoFocus
+                onSubmitEditing={addGroup}
+              />
+              <TouchableOpacity
+                style={[styles.quickAddBtn, { backgroundColor: newGroupColor }]}
+                onPress={addGroup}
+              >
+                <Feather name="plus" size={18} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.quickAddBtn, { backgroundColor: colors.secondary }]}
+                onPress={() => { setShowAddGroup(false); setNewGroupColor(GROUP_COLORS[0]); }}
+              >
+                <Feather name="x" size={18} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.colorSwatchGrid}>
+              {GROUP_COLORS.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: c },
+                    newGroupColor === c && styles.colorSwatchSelected,
+                  ]}
+                  onPress={() => setNewGroupColor(c)}
+                />
+              ))}
+            </View>
           </View>
         )}
       </View>
@@ -690,5 +755,43 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: "Inter_400Regular",
+  },
+  groupDotPreview: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    flexShrink: 0,
+  },
+  colorPickerPanel: {
+    marginTop: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    gap: 8,
+    marginBottom: 4,
+  },
+  colorPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  colorPickerLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
+  colorSwatchGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  colorSwatchSelected: {
+    borderWidth: 3,
+    borderColor: "#fff",
+    transform: [{ scale: 1.15 }],
   },
 });
