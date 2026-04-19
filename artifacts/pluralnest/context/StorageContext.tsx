@@ -378,10 +378,24 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     (json: string): boolean => {
       try {
         const parsed = JSON.parse(json) as Partial<AppData>;
-        const next = {
+        const savedSettings = parsed.settings ?? {};
+        const savedFeatures = (savedSettings as Partial<AppSettings>).featuresEnabled ?? {};
+        const next: AppData = {
           ...defaultData,
           ...parsed,
-          settings: { ...defaultSettings, ...(parsed.settings ?? {}) },
+          forumPosts: parsed.forumPosts ?? [],
+          groups: parsed.groups ?? [],
+          assets: parsed.assets ?? [],
+          deletedItems: parsed.deletedItems ?? [],
+          headspaceNodes: parsed.headspaceNodes ?? [],
+          settings: {
+            ...defaultSettings,
+            ...savedSettings,
+            featuresEnabled: {
+              ...defaultSettings.featuresEnabled,
+              ...savedFeatures,
+            },
+          },
         };
         setData(next);
         save(next);
