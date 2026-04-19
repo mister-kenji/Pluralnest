@@ -13,8 +13,10 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PinModal } from "@/components/PinModal";
 import { StorageProvider } from "@/context/StorageContext";
-import { LockProvider } from "@/context/LockContext";
+import { LockProvider, useLock } from "@/context/LockContext";
+import { useStorage } from "@/context/StorageContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,7 +40,26 @@ function RootLayoutNav() {
       <Stack.Screen name="deleted/index" />
       <Stack.Screen name="search" />
       <Stack.Screen name="onboarding" />
+      <Stack.Screen name="groups/[id]" />
     </Stack>
+  );
+}
+
+function AppLockGate({ children }: { children: React.ReactNode }) {
+  const { isAppLocked, unlockApp } = useLock();
+  const { data } = useStorage();
+  const { screenLockCode } = data.settings;
+
+  return (
+    <>
+      {children}
+      <PinModal
+        visible={isAppLocked}
+        code={screenLockCode}
+        title="PluralNest is Locked"
+        onSuccess={unlockApp}
+      />
+    </>
   );
 }
 
@@ -63,11 +84,13 @@ export default function RootLayout() {
       <ErrorBoundary>
         <StorageProvider>
           <LockProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
+            <AppLockGate>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </AppLockGate>
           </LockProvider>
         </StorageProvider>
       </ErrorBoundary>
