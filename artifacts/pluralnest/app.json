@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PluralNest",
+    "name": "Pluralnest",
     "slug": "pluralnest",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,9 +14,12 @@
       "backgroundColor": "#3a3a3a"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pluralnest.app"
     },
-    "android": {},
+    "android": {
+      "package": "com.pluralnest.app"
+    },
     "web": {
       "favicon": "./assets/images/favicon.png"
     },

@@ -374,6 +374,7 @@ export default function MemberProfileScreen() {
               const nodeIcon = (type: string) => {
                 if (type === "image") return "image" as const;
                 if (type === "place") return "map-pin" as const;
+                if (type === "text") return "align-left" as const;
                 return "file-text" as const;
               };
               return (
@@ -391,7 +392,7 @@ export default function MemberProfileScreen() {
                       <View style={styles.relInfo}>
                         <Text style={[styles.relName, { color: colors.foreground }]}>{node.title || "Untitled"}</Text>
                         <Text style={[styles.relType, { color: colors.mutedForeground }]}>
-                          {node.type === "image" ? "Image" : node.type === "place" ? "Place" : "Description"}
+                          {node.type === "image" ? "Image" : node.type === "place" ? "Place" : node.type === "text" ? "Text" : "Description"}
                         </Text>
                       </View>
                       <Feather name="chevron-right" size={16} color={colors.mutedForeground} />

@@ -97,7 +97,7 @@ export type CustomEmoji = {
 
 export type HeadspaceNode = {
   id: string;
-  type: "image" | "place" | "description";
+  type: "image" | "place" | "description" | "text";
   title: string;
   content?: string;
   imageUri?: string;
