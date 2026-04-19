@@ -177,7 +177,7 @@ export default function MemberProfileScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: colors.card + "cc" }]}
+            style={[styles.backBtn, { backgroundColor: colors.card + "cc", top: topInset + 10 }]}
             onPress={() => router.back()}
           >
             <Feather name="arrow-left" size={20} color={colors.foreground} />
@@ -185,7 +185,7 @@ export default function MemberProfileScreen() {
 
           {(activeTab === "profile" || activeTab === "info") && (
             <TouchableOpacity
-              style={[styles.editBtn, { backgroundColor: colors.card + "cc" }]}
+              style={[styles.editBtn, { backgroundColor: colors.card + "cc", top: topInset + 10 }]}
               onPress={handleEdit}
             >
               <Feather name="edit-2" size={18} color={colors.foreground} />
