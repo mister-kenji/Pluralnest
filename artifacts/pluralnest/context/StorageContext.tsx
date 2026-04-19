@@ -26,7 +26,7 @@ export type Relationship = {
   type: string;
 };
 
-export type AvatarShape = "circle" | "square" | "diamond" | "heart";
+export type AvatarShape = "circle" | "square" | "diamond" | "heart" | "hexagon" | "shield" | "star" | "triangle";
 
 export type Member = {
   id: string;

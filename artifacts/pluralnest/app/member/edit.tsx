@@ -403,9 +403,10 @@ export default function EditMemberScreen() {
 
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Avatar Shape</Text>
       <View style={[styles.shapeRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {(["circle", "square", "diamond", "heart"] as AvatarShape[]).map((s) => {
+        {(["circle", "square", "diamond", "heart", "hexagon", "shield", "star", "triangle"] as AvatarShape[]).map((s) => {
           const labels: Record<AvatarShape, string> = {
             circle: "Circle", square: "Square", diamond: "Diamond", heart: "Heart",
+            hexagon: "Hexagon", shield: "Shield", star: "Star", triangle: "Triangle",
           };
           const selected = avatarShape === s;
           return (
@@ -750,15 +751,15 @@ const styles = StyleSheet.create({
   hexLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
   shapeRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     borderRadius: 14,
     borderWidth: 1,
-    padding: 12,
+    padding: 10,
     marginBottom: 12,
     gap: 8,
   },
   shapeOption: {
-    flex: 1,
+    width: "22%",
     alignItems: "center",
     gap: 6,
     paddingVertical: 10,

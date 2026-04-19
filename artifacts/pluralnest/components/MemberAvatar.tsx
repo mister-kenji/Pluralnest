@@ -7,10 +7,14 @@ import { Svg, Defs, ClipPath, Path, Image as SvgImage, Text as SvgText } from "r
 import { AvatarShape } from "@/context/StorageContext";
 
 const SHAPE_PATHS: Record<AvatarShape, string> = {
-  circle:  "M50,5 A45,45,0,1,1,49.9999,5 Z",
-  square:  "M16,5 L84,5 Q95,5 95,16 L95,84 Q95,95 84,95 L16,95 Q5,95 5,84 L5,16 Q5,5 16,5 Z",
-  diamond: "M50,4 L96,50 L50,96 L4,50 Z",
-  heart:   "M50,30 C50,22 58,15 68,15 C83,15 90,28 90,38 C90,55 75,68 50,85 C25,68 10,55 10,38 C10,28 17,15 32,15 C42,15 50,22 50,30 Z",
+  circle:   "M50,5 A45,45,0,1,1,49.9999,5 Z",
+  square:   "M16,5 L84,5 Q95,5 95,16 L95,84 Q95,95 84,95 L16,95 Q5,95 5,84 L5,16 Q5,5 16,5 Z",
+  diamond:  "M50,4 L96,50 L50,96 L4,50 Z",
+  heart:    "M50,30 C50,22 58,15 68,15 C83,15 90,28 90,38 C90,55 75,68 50,85 C25,68 10,55 10,38 C10,28 17,15 32,15 C42,15 50,22 50,30 Z",
+  hexagon:  "M50,5 L89,27 L89,73 L50,95 L11,73 L11,27 Z",
+  shield:   "M50,5 L88,20 L88,54 C88,74 70,89 50,95 C30,89 12,74 12,54 L12,20 Z",
+  star:     "M50,5 L61,35 L93,36 L68,56 L77,86 L50,69 L24,86 L32,56 L7,36 L39,35 Z",
+  triangle: "M50,5 L95,91 L5,91 Z",
 };
 
 type Props = {
