@@ -21,7 +21,8 @@ import { useColors } from "@/hooks/useColors";
 import { useBottomTabClearance } from "@/hooks/useBottomTabClearance";
 import { genId, MEMBER_COLORS } from "@/utils/helpers";
 
-const GROUP_COLORS = MEMBER_COLORS;
+const DEFAULT_GROUP_COLOR = "#888888";
+const GROUP_COLORS = [DEFAULT_GROUP_COLOR, ...MEMBER_COLORS];
 
 export default function MembersScreen() {
   const colors = useColors();
@@ -36,7 +37,7 @@ export default function MembersScreen() {
   const [addingSubgroupToId, setAddingSubgroupToId] = useState<string | null>(null);
   const [newSubgroupName, setNewSubgroupName] = useState("");
   const [addingMemberToGroupId, setAddingMemberToGroupId] = useState<string | null>(null);
-  const [newGroupColor, setNewGroupColor] = useState(GROUP_COLORS[0]);
+  const [newGroupColor, setNewGroupColor] = useState(DEFAULT_GROUP_COLOR);
   const [editingColorForGroupId, setEditingColorForGroupId] = useState<string | null>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -115,7 +116,7 @@ export default function MembersScreen() {
     };
     updateGroups([...data.groups, group]);
     setNewGroupName("");
-    setNewGroupColor(GROUP_COLORS[0]);
+    setNewGroupColor(DEFAULT_GROUP_COLOR);
     setShowAddGroup(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
@@ -315,6 +316,7 @@ export default function MembersScreen() {
                   style={[
                     styles.colorSwatch,
                     { backgroundColor: c },
+                    c === DEFAULT_GROUP_COLOR && styles.colorSwatchDefault,
                     group.color === c && styles.colorSwatchSelected,
                   ]}
                   onPress={() => updateGroupColor(group.id, c)}
@@ -504,7 +506,7 @@ export default function MembersScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickAddBtn, { backgroundColor: colors.secondary }]}
-                onPress={() => { setShowAddGroup(false); setNewGroupColor(GROUP_COLORS[0]); }}
+                onPress={() => { setShowAddGroup(false); setNewGroupColor(DEFAULT_GROUP_COLOR); }}
               >
                 <Feather name="x" size={18} color={colors.foreground} />
               </TouchableOpacity>
@@ -516,6 +518,7 @@ export default function MembersScreen() {
                   style={[
                     styles.colorSwatch,
                     { backgroundColor: c },
+                    c === DEFAULT_GROUP_COLOR && styles.colorSwatchDefault,
                     newGroupColor === c && styles.colorSwatchSelected,
                   ]}
                   onPress={() => setNewGroupColor(c)}
@@ -788,6 +791,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
+  },
+  colorSwatchDefault: {
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#aaaaaa",
   },
   colorSwatchSelected: {
     borderWidth: 3,
