@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   Platform,
   ScrollView,
@@ -50,9 +50,15 @@ function kindIcon(kind: ActivityKind): keyof typeof Feather.glyphMap {
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { data } = useStorage();
+  const { data, isLoaded } = useStorage();
   const lastTapRef = useRef(0);
   const bottomClearance = useBottomTabClearance(16);
+
+  useEffect(() => {
+    if (isLoaded && !data.settings.hasCompletedOnboarding) {
+      router.replace("/onboarding");
+    }
+  }, [isLoaded, data.settings.hasCompletedOnboarding]);
 
   const activeFronters = useMemo(() => {
     const active = data.frontEntries.filter((e) => !e.endTime);

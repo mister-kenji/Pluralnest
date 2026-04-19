@@ -37,6 +37,7 @@ function RootLayoutNav() {
       <Stack.Screen name="settings/export" />
       <Stack.Screen name="deleted/index" />
       <Stack.Screen name="search" />
+      <Stack.Screen name="onboarding" />
     </Stack>
   );
 }

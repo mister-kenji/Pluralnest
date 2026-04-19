@@ -173,6 +173,7 @@ export type AppSettings = {
   };
   customGlobalFields: { id: string; label: string; showByDefault: boolean }[];
   systemName: string;
+  hasCompletedOnboarding: boolean;
 };
 
 type AppData = {
@@ -208,6 +209,7 @@ const defaultSettings: AppSettings = {
   },
   customGlobalFields: [],
   systemName: "My System",
+  hasCompletedOnboarding: false,
 };
 
 const defaultData: AppData = {
@@ -261,10 +263,20 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         try {
           const parsed = JSON.parse(raw) as Partial<AppData>;
+          const savedSettings = parsed.settings ?? {};
+          const hasExistingData =
+            (parsed.members?.length ?? 0) > 0 ||
+            (savedSettings as Partial<AppSettings>).systemName !== undefined;
           setData({
             ...defaultData,
             ...parsed,
-            settings: { ...defaultSettings, ...(parsed.settings ?? {}) },
+            settings: {
+              ...defaultSettings,
+              ...savedSettings,
+              hasCompletedOnboarding:
+                (savedSettings as Partial<AppSettings>).hasCompletedOnboarding ??
+                hasExistingData,
+            },
           });
         } catch {
           // corrupt data, use defaults
