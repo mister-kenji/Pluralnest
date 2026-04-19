@@ -148,7 +148,7 @@ export default function MemberProfileScreen() {
         contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
       >
         {/* ── Banner ── */}
-        <View style={[styles.banner, { paddingTop: topInset + 10 }]}>
+        <View style={[styles.banner, { paddingTop: topInset + 56 }]}>
           {/* Banner image or color strip — in its own clipping wrapper so the
               outer banner does NOT need overflow:hidden (which would break
               expo-image inside the avatar's own overflow:hidden circle). */}
@@ -175,22 +175,6 @@ export default function MemberProfileScreen() {
               />
             )}
           </View>
-
-          <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: colors.card + "cc", top: topInset + 10 }]}
-            onPress={() => router.back()}
-          >
-            <Feather name="arrow-left" size={20} color={colors.foreground} />
-          </TouchableOpacity>
-
-          {(activeTab === "profile" || activeTab === "info") && (
-            <TouchableOpacity
-              style={[styles.editBtn, { backgroundColor: colors.card + "cc", top: topInset + 10 }]}
-              onPress={handleEdit}
-            >
-              <Feather name="edit-2" size={18} color={colors.foreground} />
-            </TouchableOpacity>
-          )}
 
           <MemberAvatar
             name={member.name}
@@ -503,6 +487,23 @@ export default function MemberProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Floating nav buttons (fixed to screen, never scroll) ── */}
+      <TouchableOpacity
+        style={[styles.backBtn, { backgroundColor: colors.card + "cc", top: topInset + 10 }]}
+        onPress={() => router.back()}
+      >
+        <Feather name="arrow-left" size={20} color={colors.foreground} />
+      </TouchableOpacity>
+
+      {(activeTab === "profile" || activeTab === "info") && (
+        <TouchableOpacity
+          style={[styles.editBtn, { backgroundColor: colors.card + "cc", top: topInset + 10 }]}
+          onPress={handleEdit}
+        >
+          <Feather name="edit-2" size={18} color={colors.foreground} />
+        </TouchableOpacity>
+      )}
 
       {/* ── Tab Bar (pinned bottom) ── */}
       <View
