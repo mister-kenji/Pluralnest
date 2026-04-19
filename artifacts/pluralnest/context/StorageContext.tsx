@@ -79,9 +79,16 @@ export type JournalEntry = {
   lockCode?: string;
 };
 
+export type ChatChannel = {
+  id: string;
+  name: string;
+  createdAt: number;
+};
+
 export type ChatMessage = {
   id: string;
   memberId: string;
+  channelId?: string; // undefined = "general" (backwards compat)
   content: string;
   imageUri?: string;
   isPinned: boolean;
@@ -176,12 +183,15 @@ export type AppSettings = {
   hasCompletedOnboarding: boolean;
 };
 
+const DEFAULT_CHANNEL: ChatChannel = { id: "general", name: "general", createdAt: 0 };
+
 type AppData = {
   members: Member[];
   frontEntries: FrontEntry[];
   journalEntries: JournalEntry[];
   journalTags: JournalTag[];
   chatMessages: ChatMessage[];
+  chatChannels: ChatChannel[];
   customEmojis: CustomEmoji[];
   headspaceNodes: HeadspaceNode[];
   forumPosts: ForumPost[];
@@ -218,6 +228,7 @@ const defaultData: AppData = {
   journalEntries: [],
   journalTags: [],
   chatMessages: [],
+  chatChannels: [DEFAULT_CHANNEL],
   customEmojis: [],
   headspaceNodes: [],
   forumPosts: [],
@@ -235,6 +246,7 @@ type StorageContextType = {
   updateJournalEntries: (entries: JournalEntry[]) => void;
   updateJournalTags: (tags: JournalTag[]) => void;
   updateChatMessages: (messages: ChatMessage[]) => void;
+  updateChatChannels: (channels: ChatChannel[]) => void;
   updateCustomEmojis: (emojis: CustomEmoji[]) => void;
   updateHeadspaceNodes: (nodes: HeadspaceNode[]) => void;
   updateForumPosts: (posts: ForumPost[]) => void;
@@ -267,9 +279,15 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           const hasExistingData =
             (parsed.members?.length ?? 0) > 0 ||
             (savedSettings as Partial<AppSettings>).systemName !== undefined;
+          const parsedChannels = parsed.chatChannels ?? [];
+          const hasGeneral = parsedChannels.some((c) => c.id === "general");
+          const migratedChannels = hasGeneral
+            ? parsedChannels
+            : [DEFAULT_CHANNEL, ...parsedChannels];
           setData({
             ...defaultData,
             ...parsed,
+            chatChannels: migratedChannels,
             settings: {
               ...defaultSettings,
               ...savedSettings,
@@ -372,6 +390,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     updateJournalEntries: (v) => update("journalEntries", v),
     updateJournalTags: (v) => update("journalTags", v),
     updateChatMessages: (v) => update("chatMessages", v),
+    updateChatChannels: (v) => update("chatChannels", v),
     updateCustomEmojis: (v) => update("customEmojis", v),
     updateHeadspaceNodes: (v) => update("headspaceNodes", v),
     updateForumPosts: (v) => update("forumPosts", v),

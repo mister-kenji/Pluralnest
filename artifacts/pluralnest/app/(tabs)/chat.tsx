@@ -19,14 +19,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
-import { useStorage, ChatMessage, Member } from "@/context/StorageContext";
+import { useStorage, ChatMessage, ChatChannel, Member } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
 
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { data, updateChatMessages, softDelete } = useStorage();
+  const { data, updateChatMessages, updateChatChannels, softDelete } = useStorage();
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(
     data.members[0]?.id ?? null,
   );
@@ -34,18 +34,17 @@ export default function ChatScreen() {
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [activeChannelId, setActiveChannelId] = useState("general");
+  const [addingChannel, setAddingChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
   const listRef = useRef<FlatList>(null);
+  const channelScrollRef = useRef<ScrollView>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 0 : insets.bottom;
-  // Classic tab bar = position:absolute, height: 60 + insets.bottom (matches _layout.tsx).
-  // NativeTabs (iOS liquid glass) manage their own safe area — offset is 0.
   const usesNativeTabs = isLiquidGlassAvailable();
   const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : usesNativeTabs ? 0 : 60 + bottomInset;
-  // clearance = space above the bottom chrome for absolutely-positioned elements.
-  // On NativeTabs the system already insets content, so only the home-indicator matters.
   const tabClearance = usesNativeTabs ? bottomInset : TAB_BAR_HEIGHT;
-  // padding inside the inputRow — NativeTabs needs bottomInset since container is at 0.
   const inputPaddingBottom = usesNativeTabs ? bottomInset + 10 : 10;
 
   const selectedMember = useMemo(
@@ -53,34 +52,88 @@ export default function ChatScreen() {
     [data.members, selectedMemberId],
   );
 
-  // Chronological order (oldest first) — scroll to end to see newest
-  const messages = useMemo(
-    () =>
-      showPinned
-        ? data.chatMessages.filter((m) => m.isPinned)
-        : [...data.chatMessages],
-    [data.chatMessages, showPinned],
+  const channels = useMemo(() => data.chatChannels ?? [], [data.chatChannels]);
+
+  const activeChannel = useMemo(
+    () => channels.find((c) => c.id === activeChannelId) ?? channels[0],
+    [channels, activeChannelId],
   );
+
+  const messages = useMemo(() => {
+    const channelMsgs = data.chatMessages.filter(
+      (m) => (m.channelId ?? "general") === activeChannelId,
+    );
+    return showPinned ? channelMsgs.filter((m) => m.isPinned) : channelMsgs;
+  }, [data.chatMessages, activeChannelId, showPinned]);
 
   const pinnedCount = useMemo(
-    () => data.chatMessages.filter((m) => m.isPinned).length,
-    [data.chatMessages],
+    () =>
+      data.chatMessages.filter(
+        (m) => m.isPinned && (m.channelId ?? "general") === activeChannelId,
+      ).length,
+    [data.chatMessages, activeChannelId],
   );
 
-  // Scroll to bottom whenever messages change
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
         listRef.current?.scrollToEnd({ animated: false });
       }, 50);
     }
-  }, [messages.length]);
+  }, [messages.length, activeChannelId]);
+
+  const switchChannel = (id: string) => {
+    setActiveChannelId(id);
+    setShowPinned(false);
+    setReplyTo(null);
+  };
+
+  const createChannel = () => {
+    const name = newChannelName.trim().toLowerCase().replace(/\s+/g, "-");
+    if (!name) return;
+    if (channels.some((c) => c.name === name)) {
+      Alert.alert("Channel exists", `#${name} already exists.`);
+      return;
+    }
+    const channel: ChatChannel = { id: genId(), name, createdAt: Date.now() };
+    updateChatChannels([...channels, channel]);
+    setActiveChannelId(channel.id);
+    setNewChannelName("");
+    setAddingChannel(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTimeout(() => channelScrollRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const deleteChannel = (id: string) => {
+    if (id === "general") {
+      Alert.alert("Can't delete", "The general channel can't be removed.");
+      return;
+    }
+    Alert.alert(
+      "Delete channel",
+      "This will also delete all messages in this channel. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            updateChatChannels(channels.filter((c) => c.id !== id));
+            updateChatMessages(data.chatMessages.filter((m) => (m.channelId ?? "general") !== id));
+            setActiveChannelId("general");
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          },
+        },
+      ],
+    );
+  };
 
   const sendMessage = () => {
     if (!text.trim() || !selectedMemberId) return;
     const msg: ChatMessage = {
       id: genId(),
       memberId: selectedMemberId,
+      channelId: activeChannelId,
       content: text.trim(),
       isPinned: false,
       replyTo: replyTo ?? undefined,
@@ -102,6 +155,7 @@ export default function ChatScreen() {
       const msg: ChatMessage = {
         id: genId(),
         memberId: selectedMemberId,
+        channelId: activeChannelId,
         content: "",
         imageUri: result.assets[0].uri,
         isPinned: false,
@@ -229,13 +283,16 @@ export default function ChatScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* ── Header ── */}
       <View
         style={[
           styles.header,
           { paddingTop: topInset + 12, backgroundColor: colors.background, borderBottomColor: colors.border },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>Inner Chat</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          Inner Chat
+        </Text>
         <View style={styles.headerRight}>
           {pinnedCount > 0 && (
             <TouchableOpacity
@@ -263,6 +320,75 @@ export default function ChatScreen() {
         </View>
       </View>
 
+      {/* ── Channel Strip ── */}
+      <View style={[styles.channelBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+        <ScrollView
+          ref={channelScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.channelScroll}
+        >
+          {channels.map((ch) => {
+            const isActive = ch.id === activeChannelId;
+            return (
+              <TouchableOpacity
+                key={ch.id}
+                style={[
+                  styles.channelPill,
+                  isActive
+                    ? { backgroundColor: colors.primary }
+                    : { backgroundColor: colors.secondary },
+                ]}
+                onPress={() => switchChannel(ch.id)}
+                onLongPress={() => deleteChannel(ch.id)}
+              >
+                <Text
+                  style={[
+                    styles.channelPillText,
+                    { color: isActive ? colors.primaryForeground : colors.mutedForeground },
+                  ]}
+                >
+                  #{ch.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          {addingChannel ? (
+            <View style={[styles.channelInput, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.channelHash, { color: colors.mutedForeground }]}>#</Text>
+              <TextInput
+                autoFocus
+                style={[styles.channelTextInput, { color: colors.foreground }]}
+                placeholder="channel-name"
+                placeholderTextColor={colors.mutedForeground}
+                value={newChannelName}
+                onChangeText={setNewChannelName}
+                onSubmitEditing={createChannel}
+                onBlur={() => {
+                  if (!newChannelName.trim()) setAddingChannel(false);
+                }}
+                returnKeyType="done"
+                autoCapitalize="none"
+              />
+              <TouchableOpacity onPress={createChannel} hitSlop={8}>
+                <Feather name="check" size={14} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setAddingChannel(false); setNewChannelName(""); }} hitSlop={8}>
+                <Feather name="x" size={14} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.addChannelBtn, { backgroundColor: colors.secondary }]}
+              onPress={() => setAddingChannel(true)}
+            >
+              <Feather name="plus" size={14} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </View>
+
       {data.members.length === 0 ? (
         <EmptyState
           icon="message-circle"
@@ -287,8 +413,8 @@ export default function ChatScreen() {
             ListEmptyComponent={
               <EmptyState
                 icon="message-circle"
-                title="No messages yet"
-                subtitle="Start the inner chat!"
+                title={`No messages in #${activeChannel?.name ?? "general"}`}
+                subtitle="Start the conversation!"
               />
             }
           />
@@ -343,7 +469,7 @@ export default function ChatScreen() {
 
             <TextInput
               style={[styles.input, { color: colors.foreground, backgroundColor: colors.secondary }]}
-              placeholder="Message..."
+              placeholder={`Message #${activeChannel?.name ?? "general"}...`}
               placeholderTextColor={colors.mutedForeground}
               value={text}
               onChangeText={setText}
@@ -431,6 +557,51 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   pinnedBtnText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  channelBar: {
+    borderBottomWidth: 1,
+  },
+  channelScroll: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  channelPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  channelPillText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+  },
+  channelInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    minWidth: 130,
+  },
+  channelHash: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+  },
+  channelTextInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    padding: 0,
+  },
+  addChannelBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   messageList: { paddingHorizontal: 16, paddingTop: 12 },
   messageRow: {
     flexDirection: "row",
