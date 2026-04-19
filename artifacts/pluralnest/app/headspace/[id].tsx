@@ -92,19 +92,12 @@ export default function HeadspaceDetailScreen() {
   };
 
   const deleteChild = (childId: string) => {
-    Alert.alert("Delete Entry", "Remove this nested entry?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete", style: "destructive",
-        onPress: () => {
-          updateHeadspaceNodes(
-            data.headspaceNodes
-              .filter((n) => n.id !== childId)
-              .map((n) => ({ ...n, children: n.children.filter((c) => c !== childId) }))
-          );
-        },
-      },
-    ]);
+    updateHeadspaceNodes(
+      data.headspaceNodes
+        .filter((n) => n.id !== childId)
+        .map((n) => ({ ...n, children: n.children.filter((c) => c !== childId) }))
+    );
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   };
 
   const deleteParent = () => {
@@ -330,7 +323,7 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   screenTitle: { flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center", marginHorizontal: 8 },
 
-  parentCard: { borderRadius: 14, borderWidth: 1.5, overflow: "hidden", flexDirection: "row", marginBottom: 20 },
+  parentCard: { borderRadius: 14, borderWidth: 1.5, flexDirection: "row", marginBottom: 20 },
   parentAccent: { width: 6 },
   parentInner: { flex: 1, padding: 14 },
   parentImage: { width: "100%", height: 160, borderRadius: 8, marginBottom: 10 },
@@ -346,7 +339,7 @@ const styles = StyleSheet.create({
   emptyNestedText: { fontSize: 13, fontFamily: "Inter_400Regular", fontStyle: "italic", textAlign: "center" },
 
   childList: { gap: 10 },
-  childCard: { borderRadius: 12, borderWidth: 1, overflow: "hidden", flexDirection: "row" },
+  childCard: { borderRadius: 12, borderWidth: 1, flexDirection: "row" },
   childAccent: { width: 4 },
   childInner: { flex: 1, padding: 12 },
   childImage: { width: "100%", height: 100, borderRadius: 6, marginBottom: 8 },

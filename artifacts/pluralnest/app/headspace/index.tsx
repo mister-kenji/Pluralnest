@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   screenTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 
-  card: { borderRadius: 14, borderWidth: 1, overflow: "hidden", flexDirection: "row" },
+  card: { borderRadius: 14, borderWidth: 1, flexDirection: "row" },
   accentStrip: { width: 5 },
   cardInner: { flex: 1, padding: 14 },
   cardImage: { width: "100%", height: 130, borderRadius: 8, marginBottom: 10 },
