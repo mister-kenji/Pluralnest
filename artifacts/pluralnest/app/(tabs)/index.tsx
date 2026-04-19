@@ -68,6 +68,13 @@ export default function DashboardScreen() {
     });
   }, [data.frontEntries, data.members]);
 
+  const mainFronterName = useMemo(() => {
+    const main = activeFronters.find((f) => f.entry.status === "main");
+    const first = activeFronters[0];
+    const chosen = main ?? first;
+    return chosen?.member?.name ?? null;
+  }, [activeFronters]);
+
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   const quickActions = [
@@ -186,7 +193,9 @@ export default function DashboardScreen() {
           <Text style={[styles.systemName, { color: colors.mutedForeground }]}>
             {data.settings.systemName}
           </Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>Dashboard</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {mainFronterName ? `Hi, ${mainFronterName}!` : "Hi!"}
+          </Text>
         </View>
         <TouchableOpacity
           style={[styles.searchBtn, { backgroundColor: colors.secondary }]}
