@@ -95,21 +95,6 @@ export default function JournalsScreen() {
           {/* Space for avatar overlap at top */}
           <View style={{ height: AVATAR_OVERLAP + 10 }} />
 
-          {/* Decorative ruled lines — like a journal page */}
-          <View style={styles.ruledLines}>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <View
-                key={i}
-                style={[styles.ruleLine, { backgroundColor: member.color + "30" }]}
-              />
-            ))}
-          </View>
-
-          {/* Book-open icon in centre */}
-          <View style={styles.bookIconWrap}>
-            <Feather name="book-open" size={30} color={member.color} style={{ opacity: 0.55 }} />
-          </View>
-
           <View style={{ flex: 1 }} />
 
           {/* Entry count badge at bottom */}
@@ -206,19 +191,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 10,
     paddingBottom: 10,
-  },
-  ruledLines: {
-    gap: 7,
-    paddingHorizontal: 2,
-    marginBottom: 8,
-  },
-  ruleLine: {
-    height: 1.5,
-    borderRadius: 1,
-  },
-  bookIconWrap: {
-    alignItems: "center",
-    marginTop: 4,
   },
   countBadge: {
     flexDirection: "row",
