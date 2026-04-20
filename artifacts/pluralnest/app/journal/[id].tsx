@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Markdown from "react-native-markdown-display";
+import mdParser from "@/utils/markdownParser";
 import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
@@ -371,7 +372,7 @@ export default function JournalEntryScreen() {
               textAlignVertical="top"
             />
           ) : (
-            <Markdown style={mdStyles} rules={mdRules}>
+            <Markdown markdownit={mdParser} style={mdStyles} rules={mdRules}>
               {preprocessMarkdown(entry.content || "No content yet.", data.assets ?? [])}
             </Markdown>
           )}

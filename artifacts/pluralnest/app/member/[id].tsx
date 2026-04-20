@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Markdown from "react-native-markdown-display";
+import mdParser from "@/utils/markdownParser";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { preprocessMarkdown } from "@/utils/assetMarkdown";
@@ -228,7 +229,7 @@ export default function MemberProfileScreen() {
             {member.description ? (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>About</Text>
-                <Markdown style={mdStyles} rules={mdRules}>{preprocessMarkdown(member.description, data.assets ?? [])}</Markdown>
+                <Markdown markdownit={mdParser} style={mdStyles} rules={mdRules}>{preprocessMarkdown(member.description, data.assets ?? [])}</Markdown>
               </View>
             ) : (
               <View style={[styles.card, styles.aboutCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -323,7 +324,7 @@ export default function MemberProfileScreen() {
                       >
                         <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{gf.label}</Text>
                         <View style={[styles.fieldHRule, { backgroundColor: colors.border }]} />
-                        <Markdown style={mdStyles} rules={mdRules}>
+                        <Markdown markdownit={mdParser} style={mdStyles} rules={mdRules}>
                           {preprocessMarkdown(rawValue, data.assets)}
                         </Markdown>
                       </View>
