@@ -119,8 +119,8 @@ export type HeadspaceNode = {
 
 export type BoardLink = {
   id: string;
-  fromNodeId: string;
-  toNodeId: string;
+  fromId: string;
+  toId: string;
 };
 
 export type ForumPost = {
@@ -203,6 +203,8 @@ type AppData = {
   headspaceNodes: HeadspaceNode[];
   headspaceBoardNodeIds: string[];
   headspaceBoardLinks: BoardLink[];
+  headspaceBoardMemberIds: string[];
+  memberBoardPositions: Record<string, { x: number; y: number }>;
   forumPosts: ForumPost[];
   groups: Group[];
   deletedItems: DeletedItem[];
@@ -242,6 +244,8 @@ const defaultData: AppData = {
   headspaceNodes: [],
   headspaceBoardNodeIds: [],
   headspaceBoardLinks: [],
+  headspaceBoardMemberIds: [],
+  memberBoardPositions: {},
   forumPosts: [],
   groups: [],
   deletedItems: [],
@@ -262,6 +266,8 @@ type StorageContextType = {
   updateHeadspaceNodes: (nodes: HeadspaceNode[]) => void;
   updateHeadspaceBoardNodeIds: (ids: string[]) => void;
   updateHeadspaceBoardLinks: (links: BoardLink[]) => void;
+  updateHeadspaceBoardMemberIds: (ids: string[]) => void;
+  updateMemberBoardPositions: (pos: Record<string, { x: number; y: number }>) => void;
   updateForumPosts: (posts: ForumPost[]) => void;
   updateGroups: (groups: Group[]) => void;
   updateDeletedItems: (items: DeletedItem[]) => void;
@@ -307,7 +313,13 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
             deletedItems: parsed.deletedItems ?? [],
             headspaceNodes: parsed.headspaceNodes ?? [],
             headspaceBoardNodeIds: parsed.headspaceBoardNodeIds ?? [],
-            headspaceBoardLinks: parsed.headspaceBoardLinks ?? [],
+            headspaceBoardLinks: (parsed.headspaceBoardLinks ?? []).map((l: any) => ({
+              id: l.id,
+              fromId: l.fromId ?? l.fromNodeId ?? "",
+              toId: l.toId ?? l.toNodeId ?? "",
+            })),
+            headspaceBoardMemberIds: (parsed as any).headspaceBoardMemberIds ?? [],
+            memberBoardPositions: (parsed as any).memberBoardPositions ?? {},
             chatChannels: migratedChannels,
             settings: {
               ...defaultSettings,
@@ -403,7 +415,13 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           deletedItems: parsed.deletedItems ?? [],
           headspaceNodes: parsed.headspaceNodes ?? [],
           headspaceBoardNodeIds: parsed.headspaceBoardNodeIds ?? [],
-          headspaceBoardLinks: parsed.headspaceBoardLinks ?? [],
+          headspaceBoardLinks: (parsed.headspaceBoardLinks ?? []).map((l: any) => ({
+            id: l.id,
+            fromId: l.fromId ?? l.fromNodeId ?? "",
+            toId: l.toId ?? l.toNodeId ?? "",
+          })),
+          headspaceBoardMemberIds: (parsed as any).headspaceBoardMemberIds ?? [],
+          memberBoardPositions: (parsed as any).memberBoardPositions ?? {},
           settings: {
             ...defaultSettings,
             ...savedSettings,
@@ -436,6 +454,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     updateHeadspaceNodes: (v) => update("headspaceNodes", v),
     updateHeadspaceBoardNodeIds: (v) => update("headspaceBoardNodeIds", v),
     updateHeadspaceBoardLinks: (v) => update("headspaceBoardLinks", v),
+    updateHeadspaceBoardMemberIds: (v) => update("headspaceBoardMemberIds", v),
+    updateMemberBoardPositions: (v) => update("memberBoardPositions", v),
     updateForumPosts: (v) => update("forumPosts", v),
     updateGroups: (v) => update("groups", v),
     updateDeletedItems: (v) => update("deletedItems", v),

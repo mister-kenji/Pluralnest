@@ -18,13 +18,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Image } from "expo-image";
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { BoardLink, HeadspaceNode, useStorage } from "@/context/StorageContext";
+import { BoardLink, HeadspaceNode, Member, useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
 import { TYPE_META } from "@/app/headspace/index";
 
 const NODE_W = 155;
 const NODE_H = 90;
+const MEMBER_W = 110;
+const MEMBER_H = 86;
 
 type Mode = "pan" | "connect";
 
@@ -36,10 +38,15 @@ export function HeadspaceBoard() {
     updateHeadspaceNodes,
     updateHeadspaceBoardNodeIds,
     updateHeadspaceBoardLinks,
+    updateHeadspaceBoardMemberIds,
+    updateMemberBoardPositions,
   } = useStorage();
 
   const boardNodeIds: string[] = data.headspaceBoardNodeIds ?? [];
   const boardLinks: BoardLink[] = data.headspaceBoardLinks ?? [];
+  const boardMemberIds: string[] = data.headspaceBoardMemberIds ?? [];
+  const memberBoardPositions: Record<string, { x: number; y: number }> =
+    data.memberBoardPositions ?? {};
 
   const boardNodes = useMemo(
     () =>
@@ -47,6 +54,14 @@ export function HeadspaceBoard() {
         .map((id) => data.headspaceNodes.find((n) => n.id === id))
         .filter((n): n is HeadspaceNode => !!n),
     [boardNodeIds, data.headspaceNodes],
+  );
+
+  const boardMembers = useMemo(
+    () =>
+      boardMemberIds
+        .map((id) => data.members.find((m) => m.id === id))
+        .filter((m): m is Member => !!m),
+    [boardMemberIds, data.members],
   );
 
   const [mode, setMode] = useState<Mode>("pan");
@@ -62,6 +77,12 @@ export function HeadspaceBoard() {
 
   const boardNodesRef = useRef<HeadspaceNode[]>([]);
   boardNodesRef.current = boardNodes;
+  const boardMembersRef = useRef<Member[]>([]);
+  boardMembersRef.current = boardMembers;
+  const boardMemberIdsRef = useRef<string[]>([]);
+  boardMemberIdsRef.current = boardMemberIds;
+  const memberBoardPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  memberBoardPositionsRef.current = memberBoardPositions;
   const modeRef = useRef<Mode>("pan");
   modeRef.current = mode;
   const connectFromRef = useRef<string | null>(null);
@@ -69,12 +90,17 @@ export function HeadspaceBoard() {
   const selectedNodeIdRef = useRef<string | null>(null);
   selectedNodeIdRef.current = selectedNodeId;
 
-  const getPos = (nodeId: string): { x: number; y: number } => {
-    if (localPosRef.current[nodeId]) return localPosRef.current[nodeId];
-    if (localPos[nodeId]) return localPos[nodeId];
-    const n = data.headspaceNodes.find((x) => x.id === nodeId);
+  const getPos = (itemId: string): { x: number; y: number } => {
+    if (localPosRef.current[itemId]) return localPosRef.current[itemId];
+    if (localPos[itemId]) return localPos[itemId];
+    // check member positions first
+    if (memberBoardPositionsRef.current[itemId])
+      return memberBoardPositionsRef.current[itemId];
+    const n = data.headspaceNodes.find((x) => x.id === itemId);
     return { x: n?.x ?? 100, y: n?.y ?? 100 };
   };
+
+  const isMemberId = (id: string) => boardMemberIdsRef.current.includes(id);
 
   const boardLinksRef = useRef<BoardLink[]>([]);
   boardLinksRef.current = boardLinks;
@@ -84,54 +110,55 @@ export function HeadspaceBoard() {
   headspaceNodesRef.current = data.headspaceNodes;
 
   const handleNodeTapRef = useRef<(id: string) => void>(() => {});
-  handleNodeTapRef.current = (nodeId: string) => {
+  handleNodeTapRef.current = (itemId: string) => {
     if (modeRef.current === "connect") {
       if (!connectFromRef.current) {
-        setConnectFrom(nodeId);
+        setConnectFrom(itemId);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } else if (connectFromRef.current === nodeId) {
+      } else if (connectFromRef.current === itemId) {
         setConnectFrom(null);
       } else {
         const fromId = connectFromRef.current;
-        const toId = nodeId;
+        const toId = itemId;
         const existing = boardLinksRef.current.find(
           (l) =>
-            (l.fromNodeId === fromId && l.toNodeId === toId) ||
-            (l.fromNodeId === toId && l.toNodeId === fromId),
+            (l.fromId === fromId && l.toId === toId) ||
+            (l.fromId === toId && l.toId === fromId),
         );
         if (existing) {
-          // Toggle off: remove the link and clear selection
           updateHeadspaceBoardLinks(boardLinksRef.current.filter((l) => l.id !== existing.id));
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           setConnectFrom(null);
         } else {
-          // New link created: keep the second node selected as the next source
-          // so the user gets clear feedback the link landed and can chain another
-          const link: BoardLink = { id: genId(), fromNodeId: fromId, toNodeId: toId };
+          const link: BoardLink = { id: genId(), fromId, toId };
           updateHeadspaceBoardLinks([...boardLinksRef.current, link]);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setConnectFrom(toId);
         }
       }
     } else {
-      setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+      setSelectedNodeId((prev) => (prev === itemId ? null : itemId));
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
-  const saveNodePosRef = useRef<(nodeId: string, pos: { x: number; y: number }) => void>(
+  const saveNodePosRef = useRef<(itemId: string, pos: { x: number; y: number }) => void>(
     () => {},
   );
-  saveNodePosRef.current = (nodeId: string, pos: { x: number; y: number }) => {
-    const updated = headspaceNodesRef.current.map((n) =>
-      n.id === nodeId ? { ...n, x: pos.x, y: pos.y } : n,
-    );
-    updateHeadspaceNodes(updated);
+  saveNodePosRef.current = (itemId: string, pos: { x: number; y: number }) => {
+    if (boardMemberIdsRef.current.includes(itemId)) {
+      updateMemberBoardPositions({ ...memberBoardPositionsRef.current, [itemId]: pos });
+    } else {
+      const updated = headspaceNodesRef.current.map((n) =>
+        n.id === itemId ? { ...n, x: pos.x, y: pos.y } : n,
+      );
+      updateHeadspaceNodes(updated);
+    }
   };
 
   const dragState = useRef<{
     type: "canvas" | "node";
-    nodeId?: string;
+    nodeId?: string; // id of node OR member being dragged
     startVal: { x: number; y: number };
     moved: boolean;
   }>({ type: "canvas", startVal: { x: 0, y: 0 }, moved: false });
@@ -166,21 +193,39 @@ export function HeadspaceBoard() {
         const cx = locationX - canvasOffsetRef.current.x;
         const cy = locationY - canvasOffsetRef.current.y;
 
-        let hitNodeId: string | null = null;
+        let hitItemId: string | null = null;
+        // check nodes
         for (const node of boardNodesRef.current) {
           const pos = localPosRef.current[node.id] ?? { x: node.x, y: node.y };
           if (cx >= pos.x && cx <= pos.x + NODE_W && cy >= pos.y && cy <= pos.y + NODE_H) {
-            hitNodeId = node.id;
+            hitItemId = node.id;
             break;
           }
         }
+        // check member cards if no node hit
+        if (!hitItemId) {
+          for (const m of boardMembersRef.current) {
+            const pos = localPosRef.current[m.id] ??
+              memberBoardPositionsRef.current[m.id] ??
+              { x: 60, y: 60 };
+            if (cx >= pos.x && cx <= pos.x + MEMBER_W && cy >= pos.y && cy <= pos.y + MEMBER_H) {
+              hitItemId = m.id;
+              break;
+            }
+          }
+        }
 
-        if (hitNodeId) {
-          const n = boardNodesRef.current.find((x) => x.id === hitNodeId);
-          const pos = localPosRef.current[hitNodeId] ?? { x: n?.x ?? 0, y: n?.y ?? 0 };
+        if (hitItemId) {
+          const isNode = boardNodesRef.current.some((n) => n.id === hitItemId);
+          const pos = isNode
+            ? (localPosRef.current[hitItemId] ??
+               (() => { const n = boardNodesRef.current.find((x) => x.id === hitItemId); return { x: n?.x ?? 0, y: n?.y ?? 0 }; })())
+            : (localPosRef.current[hitItemId] ??
+               memberBoardPositionsRef.current[hitItemId] ??
+               { x: 60, y: 60 });
           dragState.current = {
             type: "node",
-            nodeId: hitNodeId,
+            nodeId: hitItemId,
             startVal: { ...pos },
             moved: false,
           };
@@ -239,10 +284,28 @@ export function HeadspaceBoard() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const removeNodeFromBoard = (nodeId: string) => {
-    updateHeadspaceBoardNodeIds(boardNodeIdsRef.current.filter((id) => id !== nodeId));
+  const addMemberToBoard = (memberId: string) => {
+    if (boardMemberIdsRef.current.includes(memberId)) return;
+    const bw = boardLayoutRef.current.width;
+    const bh = boardLayoutRef.current.height;
+    const cx = -canvasOffsetRef.current.x + bw / 2 - MEMBER_W / 2;
+    const cy = -canvasOffsetRef.current.y + bh / 2 - MEMBER_H / 2;
+    const jitter = () => (Math.random() - 0.5) * 120;
+    const x = Math.max(20, cx + jitter());
+    const y = Math.max(20, cy + jitter());
+    updateMemberBoardPositions({ ...memberBoardPositionsRef.current, [memberId]: { x, y } });
+    updateHeadspaceBoardMemberIds([...boardMemberIdsRef.current, memberId]);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const removeNodeFromBoard = (itemId: string) => {
+    if (boardMemberIdsRef.current.includes(itemId)) {
+      updateHeadspaceBoardMemberIds(boardMemberIdsRef.current.filter((id) => id !== itemId));
+    } else {
+      updateHeadspaceBoardNodeIds(boardNodeIdsRef.current.filter((id) => id !== itemId));
+    }
     updateHeadspaceBoardLinks(boardLinksRef.current.filter(
-      (l) => l.fromNodeId !== nodeId && l.toNodeId !== nodeId,
+      (l) => l.fromId !== itemId && l.toId !== itemId,
     ));
     setSelectedNodeId(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -265,9 +328,15 @@ export function HeadspaceBoard() {
   const selectedNode = selectedNodeId
     ? data.headspaceNodes.find((n) => n.id === selectedNodeId)
     : null;
+  const selectedMember = selectedNodeId && !selectedNode
+    ? data.members.find((m) => m.id === selectedNodeId)
+    : null;
 
   const nodesNotOnBoard = data.headspaceNodes.filter(
     (n) => !boardNodeIds.includes(n.id) && !n.parentId,
+  );
+  const membersNotOnBoard = data.members.filter(
+    (m) => !m.isArchived && !boardMemberIds.includes(m.id),
   );
 
   const bottomInset = Platform.OS === "web" ? 0 : insets.bottom;
@@ -292,18 +361,21 @@ export function HeadspaceBoard() {
           {/* SVG link lines */}
           <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
             {boardLinks.map((link) => {
-              const fromNode = boardNodes.find((n) => n.id === link.fromNodeId);
-              const toNode = boardNodes.find((n) => n.id === link.toNodeId);
-              if (!fromNode || !toNode) return null;
-              const fp = getPos(fromNode.id);
-              const tp = getPos(toNode.id);
+              const fromIsMember = boardMemberIds.includes(link.fromId);
+              const toIsMember = boardMemberIds.includes(link.toId);
+              const fp = getPos(link.fromId);
+              const tp = getPos(link.toId);
+              const fW = fromIsMember ? MEMBER_W : NODE_W;
+              const fH = fromIsMember ? MEMBER_H : NODE_H;
+              const tW = toIsMember ? MEMBER_W : NODE_W;
+              const tH = toIsMember ? MEMBER_H : NODE_H;
               return (
                 <Line
                   key={link.id}
-                  x1={fp.x + NODE_W / 2}
-                  y1={fp.y + NODE_H / 2}
-                  x2={tp.x + NODE_W / 2}
-                  y2={tp.y + NODE_H / 2}
+                  x1={fp.x + fW / 2}
+                  y1={fp.y + fH / 2}
+                  x2={tp.x + tW / 2}
+                  y2={tp.y + tH / 2}
                   stroke={colors.primary + "aa"}
                   strokeWidth={2}
                   strokeDasharray="8,5"
@@ -401,59 +473,159 @@ export function HeadspaceBoard() {
             );
           })}
 
+          {/* Member cards */}
+          {boardMembers.map((member) => {
+            const pos = getPos(member.id);
+            const isSelected = selectedNodeId === member.id && mode === "pan";
+            const isConnectSrc = connectFrom === member.id;
+
+            const memberCardStyle = [
+              styles.memberCard,
+              {
+                left: pos.x,
+                top: pos.y,
+                backgroundColor: colors.card,
+                borderColor: isConnectSrc
+                  ? member.color
+                  : isSelected
+                  ? member.color
+                  : colors.border,
+                borderWidth: isSelected || isConnectSrc ? 2 : 1,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isSelected || isConnectSrc ? 0.25 : 0.08,
+                shadowRadius: 4,
+                elevation: isSelected || isConnectSrc ? 6 : 2,
+              },
+            ];
+
+            const memberInner = (
+              <>
+                <View style={[styles.memberCardTop, { backgroundColor: member.color + "22" }]}>
+                  <MemberAvatar
+                    name={member.name}
+                    color={member.color}
+                    profileImage={member.profileImage}
+                    size={40}
+                  />
+                </View>
+                <View style={styles.memberCardBody}>
+                  <Text
+                    style={[styles.memberCardName, { color: colors.foreground }]}
+                    numberOfLines={2}
+                  >
+                    {member.name}
+                  </Text>
+                  {isConnectSrc && (
+                    <View style={[styles.memberCardBadge, { backgroundColor: member.color + "33" }]}>
+                      <Text style={[styles.memberCardBadgeText, { color: member.color }]}>linking…</Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            );
+
+            if (mode === "connect") {
+              return (
+                <TouchableOpacity
+                  key={member.id}
+                  style={memberCardStyle}
+                  activeOpacity={0.7}
+                  onPress={() => handleNodeTapRef.current(member.id)}
+                >
+                  {memberInner}
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <View key={member.id} style={memberCardStyle}>
+                {memberInner}
+              </View>
+            );
+          })}
+
           {/* Empty hint */}
-          {boardNodes.length === 0 && (
+          {boardNodes.length === 0 && boardMembers.length === 0 && (
             <View style={styles.emptyHint} pointerEvents="none">
               <Feather name="map" size={32} color={colors.muted} />
               <Text style={[styles.emptyHintText, { color: colors.mutedForeground }]}>
-                Tap + to place headspace entries on this board
+                Tap + to place headspace entries or member profiles on this board
               </Text>
             </View>
           )}
         </Animated.View>
       </View>
 
-      {/* ── Selected node action bar ── */}
-      {selectedNode && mode === "pan" && (
+      {/* ── Selected item action bar ── */}
+      {(selectedNode || selectedMember) && mode === "pan" && (
         <View
           style={[
             styles.actionBar,
             { backgroundColor: colors.card, borderTopColor: colors.border },
           ]}
         >
-          <View style={styles.actionBarLeft}>
-            <View
-              style={[
-                styles.actionBarAccent,
-                {
-                  backgroundColor:
-                    (TYPE_META[selectedNode.type] ?? TYPE_META.description).color,
-                },
-              ]}
-            />
-            <Text style={[styles.actionBarTitle, { color: colors.foreground }]} numberOfLines={1}>
-              {selectedNode.title}
-            </Text>
-          </View>
-          <View style={styles.actionBarBtns}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => {
-                setSelectedNodeId(null);
-                router.push(`/headspace/${selectedNode.id}`);
-              }}
-            >
-              <Feather name="arrow-right" size={15} color={colors.foreground} />
-              <Text style={[styles.actionBtnText, { color: colors.foreground }]}>View</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => removeNodeFromBoard(selectedNode.id)}
-            >
-              <Feather name="x" size={15} color={colors.destructive} />
-              <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Remove</Text>
-            </TouchableOpacity>
-          </View>
+          {selectedNode && (
+            <>
+              <View style={styles.actionBarLeft}>
+                <View
+                  style={[
+                    styles.actionBarAccent,
+                    { backgroundColor: (TYPE_META[selectedNode.type] ?? TYPE_META.description).color },
+                  ]}
+                />
+                <Text style={[styles.actionBarTitle, { color: colors.foreground }]} numberOfLines={1}>
+                  {selectedNode.title}
+                </Text>
+              </View>
+              <View style={styles.actionBarBtns}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+                  onPress={() => { setSelectedNodeId(null); router.push(`/headspace/${selectedNode.id}`); }}
+                >
+                  <Feather name="arrow-right" size={15} color={colors.foreground} />
+                  <Text style={[styles.actionBtnText, { color: colors.foreground }]}>View</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+                  onPress={() => removeNodeFromBoard(selectedNode.id)}
+                >
+                  <Feather name="x" size={15} color={colors.destructive} />
+                  <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+          {selectedMember && (
+            <>
+              <View style={styles.actionBarLeft}>
+                <MemberAvatar
+                  name={selectedMember.name}
+                  color={selectedMember.color}
+                  profileImage={selectedMember.profileImage}
+                  size={28}
+                />
+                <Text style={[styles.actionBarTitle, { color: colors.foreground }]} numberOfLines={1}>
+                  {selectedMember.name}
+                </Text>
+              </View>
+              <View style={styles.actionBarBtns}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+                  onPress={() => { setSelectedNodeId(null); router.push(`/member/${selectedMember.id}`); }}
+                >
+                  <Feather name="user" size={15} color={colors.foreground} />
+                  <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+                  onPress={() => removeNodeFromBoard(selectedMember.id)}
+                >
+                  <Feather name="x" size={15} color={colors.destructive} />
+                  <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -558,68 +730,79 @@ export function HeadspaceBoard() {
                 </TouchableOpacity>
               </View>
 
-              {nodesNotOnBoard.length === 0 ? (
-                <View style={styles.sheetEmpty}>
-                  <Text style={[styles.sheetEmptyText, { color: colors.mutedForeground }]}>
-                    All your headspace entries are already on the board.
-                  </Text>
-                </View>
-              ) : (
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{ paddingBottom: 20 }}
-                >
-                  <Text style={[styles.sheetHint, { color: colors.mutedForeground }]}>
-                    Tap an entry to pin it to the board
-                  </Text>
-                  {nodesNotOnBoard.map((node) => {
-                    const meta = TYPE_META[node.type] ?? TYPE_META.description;
-                    return (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                {/* Member profiles section */}
+                {membersNotOnBoard.length > 0 && (
+                  <>
+                    <Text style={[styles.sheetSectionLabel, { color: colors.mutedForeground }]}>
+                      Member Profiles
+                    </Text>
+                    {membersNotOnBoard.map((m) => (
                       <TouchableOpacity
-                        key={node.id}
-                        style={[
-                          styles.sheetItem,
-                          { backgroundColor: colors.secondary, borderColor: colors.border },
-                        ]}
-                        onPress={() => {
-                          addNodeToBoard(node.id);
-                          setShowAddSheet(false);
-                        }}
+                        key={m.id}
+                        style={[styles.sheetItem, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+                        onPress={() => { addMemberToBoard(m.id); setShowAddSheet(false); }}
                       >
-                        <View
-                          style={[styles.sheetItemAccent, { backgroundColor: meta.color }]}
-                        />
-                        <View style={styles.sheetItemBody}>
-                          <View style={styles.sheetItemHeader}>
-                            <Feather name={meta.icon as any} size={12} color={meta.color} />
-                            <Text style={[styles.sheetItemType, { color: meta.color }]}>
-                              {meta.label}
-                            </Text>
-                          </View>
-                          <Text
-                            style={[styles.sheetItemTitle, { color: colors.foreground }]}
-                            numberOfLines={1}
-                          >
-                            {node.title}
+                        <View style={[styles.sheetItemAccent, { backgroundColor: m.color }]} />
+                        <View style={[styles.sheetItemBody, { flexDirection: "row", alignItems: "center", gap: 10 }]}>
+                          <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={32} />
+                          <Text style={[styles.sheetItemTitle, { color: colors.foreground, flex: 1 }]} numberOfLines={1}>
+                            {m.name}
                           </Text>
-                          {node.content ? (
-                            <Text
-                              style={[
-                                styles.sheetItemDesc,
-                                { color: colors.mutedForeground },
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {node.content}
-                            </Text>
-                          ) : null}
                         </View>
                         <Feather name="plus-circle" size={20} color={colors.primary} />
                       </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
+                    ))}
+                  </>
+                )}
+
+                {/* Headspace entries section */}
+                {nodesNotOnBoard.length > 0 && (
+                  <>
+                    <Text style={[styles.sheetSectionLabel, { color: colors.mutedForeground }]}>
+                      Headspace Entries
+                    </Text>
+                    {nodesNotOnBoard.map((node) => {
+                      const meta = TYPE_META[node.type] ?? TYPE_META.description;
+                      return (
+                        <TouchableOpacity
+                          key={node.id}
+                          style={[styles.sheetItem, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+                          onPress={() => { addNodeToBoard(node.id); setShowAddSheet(false); }}
+                        >
+                          <View style={[styles.sheetItemAccent, { backgroundColor: meta.color }]} />
+                          <View style={styles.sheetItemBody}>
+                            <View style={styles.sheetItemHeader}>
+                              <Feather name={meta.icon as any} size={12} color={meta.color} />
+                              <Text style={[styles.sheetItemType, { color: meta.color }]}>{meta.label}</Text>
+                            </View>
+                            <Text style={[styles.sheetItemTitle, { color: colors.foreground }]} numberOfLines={1}>
+                              {node.title}
+                            </Text>
+                            {node.content ? (
+                              <Text style={[styles.sheetItemDesc, { color: colors.mutedForeground }]} numberOfLines={1}>
+                                {node.content}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <Feather name="plus-circle" size={20} color={colors.primary} />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </>
+                )}
+
+                {nodesNotOnBoard.length === 0 && membersNotOnBoard.length === 0 && (
+                  <View style={styles.sheetEmpty}>
+                    <Text style={[styles.sheetEmptyText, { color: colors.mutedForeground }]}>
+                      Everything is already on the board.
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -651,6 +834,50 @@ const styles = StyleSheet.create({
   nodeType: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   nodeTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 17 },
   nodeAvatars: { flexDirection: "row", gap: 3, marginTop: 2 },
+
+  memberCard: {
+    position: "absolute",
+    width: MEMBER_W,
+    height: MEMBER_H,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+    flexDirection: "column",
+  },
+  memberCardTop: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  memberCardBody: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingBottom: 6,
+    gap: 3,
+  },
+  memberCardName: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+    lineHeight: 15,
+  },
+  memberCardBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  memberCardBadgeText: { fontSize: 9, fontFamily: "Inter_600SemiBold" },
+
+  sheetSectionLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginTop: 10,
+    marginBottom: 8,
+  },
 
   emptyHint: {
     position: "absolute",
