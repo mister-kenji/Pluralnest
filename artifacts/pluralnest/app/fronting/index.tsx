@@ -45,6 +45,45 @@ export default function FrontingLogScreen() {
   const [showMoreMoods, setShowMoreMoods] = useState(false);
   const [filterDate, setFilterDate] = useState("");
 
+  // ── Edit entry state ──
+  const [editEntry, setEditEntry] = useState<FrontEntry | null>(null);
+  const [editMemberId, setEditMemberId] = useState("");
+  const [editStatus, setEditStatus] = useState<FrontStatus>("main");
+  const [editCustomStatus, setEditCustomStatus] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editMood, setEditMood] = useState<number | null>(null);
+  const [editShowMoreMoods, setEditShowMoreMoods] = useState(false);
+
+  const openEditModal = (entry: FrontEntry) => {
+    setEditEntry(entry);
+    setEditMemberId(entry.memberId);
+    setEditStatus(entry.status);
+    setEditCustomStatus(entry.customStatus ?? "");
+    setEditNote(entry.note ?? "");
+    setEditMood(entry.mood ?? null);
+    setEditShowMoreMoods(false);
+  };
+
+  const saveEdit = () => {
+    if (!editEntry) return;
+    updateFrontEntries(
+      data.frontEntries.map((e) =>
+        e.id === editEntry.id
+          ? {
+              ...e,
+              memberId: editMemberId,
+              status: editStatus,
+              customStatus: editCustomStatus || undefined,
+              note: editNote || undefined,
+              mood: editMood ?? undefined,
+            }
+          : e,
+      ),
+    );
+    setEditEntry(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   const activeFronters = useMemo(
@@ -126,7 +165,11 @@ export default function FrontingLogScreen() {
     const moodMeta = item.mood != null ? MOODS.find((m) => m.value === item.mood) : null;
 
     return (
-      <View style={[styles.entryCard, { backgroundColor: colors.card, borderColor: item.endTime ? colors.border : member?.color ?? colors.primary }]}>
+      <TouchableOpacity
+        activeOpacity={0.75}
+        onPress={() => openEditModal(item)}
+        style={[styles.entryCard, { backgroundColor: colors.card, borderColor: item.endTime ? colors.border : member?.color ?? colors.primary }]}
+      >
         <View style={styles.entryLeft}>
           {member && (
             <MemberAvatar
@@ -170,15 +213,23 @@ export default function FrontingLogScreen() {
             </View>
           )}
         </View>
-        {!item.endTime && (
+        <View style={styles.entryActions}>
+          {!item.endTime && (
+            <TouchableOpacity
+              style={[styles.endBtn, { backgroundColor: colors.destructive + "22", borderColor: colors.destructive + "44" }]}
+              onPress={(e) => { e.stopPropagation?.(); endFront(item.id); }}
+            >
+              <Feather name="square" size={14} color={colors.destructive} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            style={[styles.endBtn, { backgroundColor: colors.destructive + "22", borderColor: colors.destructive + "44" }]}
-            onPress={() => endFront(item.id)}
+            style={[styles.editBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+            onPress={() => openEditModal(item)}
           >
-            <Feather name="square" size={14} color={colors.destructive} />
+            <Feather name="edit-2" size={12} color={colors.mutedForeground} />
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -259,6 +310,149 @@ export default function FrontingLogScreen() {
         }
         renderItem={renderEntry}
       />
+
+      {/* ── Edit Entry Modal ── */}
+      <Modal visible={!!editEntry} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: "#0009" }]}>
+          <ScrollView
+            style={[styles.modal, { backgroundColor: colors.card, borderColor: colors.border }]}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit Entry</Text>
+              <TouchableOpacity onPress={() => setEditEntry(null)}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Member</Text>
+            <FlatList
+              data={data.members.filter((m) => !m.isArchived)}
+              keyExtractor={(m) => m.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.memberList}
+              renderItem={({ item: m }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.memberPickerItem,
+                    {
+                      borderColor: editMemberId === m.id ? m.color : colors.border,
+                      backgroundColor: editMemberId === m.id ? m.color + "22" : colors.secondary,
+                    },
+                  ]}
+                  onPress={() => setEditMemberId(m.id)}
+                >
+                  <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={36} />
+                  <Text
+                    style={[styles.memberPickerName, { color: editMemberId === m.id ? m.color : colors.foreground }]}
+                    numberOfLines={1}
+                  >
+                    {m.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+
+            <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Status</Text>
+            <View style={styles.statusRow}>
+              {STATUS_OPTIONS.map((s) => (
+                <TouchableOpacity
+                  key={s.value}
+                  style={[
+                    styles.statusBtn,
+                    {
+                      borderColor: editStatus === s.value ? colors.primary : colors.border,
+                      backgroundColor: editStatus === s.value ? colors.primary + "22" : colors.secondary,
+                    },
+                  ]}
+                  onPress={() => setEditStatus(s.value)}
+                >
+                  <Text style={[styles.statusBtnText, { color: editStatus === s.value ? colors.primary : colors.foreground }]}>
+                    {s.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Custom Status (optional)</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
+              value={editCustomStatus}
+              onChangeText={setEditCustomStatus}
+              placeholder="e.g. rapid switching, background..."
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Emotion (optional)</Text>
+            <View style={styles.moodRow}>
+              {SCALE_MOODS.map((m) => (
+                <TouchableOpacity
+                  key={m.value}
+                  style={[
+                    styles.moodBtn,
+                    {
+                      borderColor: editMood === m.value ? m.color : colors.border,
+                      backgroundColor: editMood === m.value ? m.color + "22" : colors.secondary,
+                    },
+                  ]}
+                  onPress={() => { setEditMood(editMood === m.value ? null : m.value); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                >
+                  <Text style={styles.moodBtnEmoji}>{m.emoji}</Text>
+                  <Text style={[styles.moodBtnLabel, { color: editMood === m.value ? m.color : colors.mutedForeground }]}>{m.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {editShowMoreMoods && (
+              <View style={styles.moodExtraGrid}>
+                {EXTRA_MOODS.map((m) => (
+                  <TouchableOpacity
+                    key={m.value}
+                    style={[
+                      styles.moodExtraBtn,
+                      {
+                        borderColor: editMood === m.value ? m.color : colors.border,
+                        backgroundColor: editMood === m.value ? m.color + "22" : colors.secondary,
+                      },
+                    ]}
+                    onPress={() => { setEditMood(editMood === m.value ? null : m.value); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  >
+                    <Text style={styles.moodBtnEmoji}>{m.emoji}</Text>
+                    <Text style={[styles.moodBtnLabel, { color: editMood === m.value ? m.color : colors.mutedForeground }]}>{m.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.moodExpandBtn}
+              onPress={() => { setEditShowMoreMoods((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <Feather name={editShowMoreMoods ? "chevron-up" : "chevron-down"} size={13} color={colors.mutedForeground} />
+              <Text style={[styles.moodExpandLabel, { color: colors.mutedForeground }]}>
+                {editShowMoreMoods ? "Show fewer emotions" : "More emotions…"}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Note (optional)</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
+              value={editNote}
+              onChangeText={setEditNote}
+              placeholder="Note..."
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+            />
+
+            <TouchableOpacity
+              style={[styles.logBtn, { backgroundColor: colors.primary }]}
+              onPress={saveEdit}
+            >
+              <Text style={[styles.logBtnText, { color: colors.primaryForeground }]}>Save Changes</Text>
+            </TouchableOpacity>
+            <View style={{ height: insets.bottom + 20 }} />
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* ── Quick Front Modal ── */}
       <Modal visible={showQuickModal} transparent animationType="slide">
@@ -590,6 +784,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   noteText: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  entryActions: {
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+  },
   endBtn: {
     width: 32,
     height: 32,
@@ -597,7 +796,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "flex-start",
+  },
+  editBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalOverlay: { flex: 1, justifyContent: "flex-end" },
   modal: {
