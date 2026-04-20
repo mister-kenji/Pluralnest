@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -118,6 +119,19 @@ export default function ExportScreen() {
     await copyToClipboard(json);
   };
 
+  const readUriAsText = async (uri: string): Promise<string> => {
+    // Try FileSystem first (works for file:// and cached content:// on most devices)
+    try {
+      return await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+    } catch {}
+    // Fallback: fetch() handles Android content:// URIs reliably on native
+    const resp = await fetch(uri);
+    if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
+    return resp.text();
+  };
+
   const pickAndImport = async () => {
     if (Platform.OS === "web") {
       try {
@@ -138,37 +152,42 @@ export default function ExportScreen() {
     }
 
     try {
-      const DocumentPicker = await import("expo-document-picker");
       const result = await DocumentPicker.getDocumentAsync({
         type: ["application/json", "text/plain", "*/*"],
         copyToCacheDirectory: true,
       });
       if (result.canceled) return;
-      const asset = result.assets[0];
+      const asset = result.assets?.[0];
       if (!asset?.uri) {
-        flash(setImportStatus, { type: "error", msg: "Could not read file. Paste JSON below instead." });
+        flash(setImportStatus, { type: "error", msg: "No file selected." });
         return;
       }
-      let fileJson: string;
-      try {
-        fileJson = await FileSystem.readAsStringAsync(asset.uri, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-      } catch {
-        if (asset.file) {
-          fileJson = await new Promise<string>((res, rej) => {
-            const reader = new (globalThis as any).FileReader();
-            reader.onload = () => res(reader.result as string);
-            reader.onerror = rej;
-            reader.readAsText(asset.file as Blob);
-          });
-        } else {
-          throw new Error("unreadable");
-        }
-      }
+      const fileJson = await readUriAsText(asset.uri);
       setConfirmImport({ json: fileJson });
+    } catch (err: any) {
+      flash(setImportStatus, {
+        type: "error",
+        msg: "Could not read file — try copying the JSON to clipboard and using 'Paste from Clipboard' instead.",
+      });
+    }
+  };
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (!text?.trim()) {
+        flash(setImportStatus, { type: "error", msg: "Clipboard is empty." });
+        return;
+      }
+      // Quick sanity check — must look like JSON
+      const trimmed = text.trim();
+      if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+        flash(setImportStatus, { type: "error", msg: "Clipboard doesn't contain JSON data." });
+        return;
+      }
+      setConfirmImport({ json: trimmed });
     } catch {
-      flash(setImportStatus, { type: "error", msg: "Could not read file. Paste JSON below instead." });
+      flash(setImportStatus, { type: "error", msg: "Could not read clipboard." });
     }
   };
 
@@ -318,6 +337,18 @@ export default function ExportScreen() {
           {Platform.OS === "web" ? "Choose Backup File" : "Pick Backup File"}
         </Text>
       </TouchableOpacity>
+
+      {Platform.OS !== "web" && (
+        <TouchableOpacity
+          style={[styles.importBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={pasteFromClipboard}
+        >
+          <Feather name="clipboard" size={18} color={colors.foreground} />
+          <Text style={[styles.importBtnText, { color: colors.foreground }]}>
+            Paste from Clipboard
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={[styles.pasteToggle, { borderColor: colors.border }]}
