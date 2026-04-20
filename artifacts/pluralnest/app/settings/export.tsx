@@ -38,9 +38,7 @@ export default function ExportScreen() {
   };
 
   const doExport = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {}
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
 
     let json = "";
     try {
@@ -53,6 +51,7 @@ export default function ExportScreen() {
     const date = new Date().toISOString().slice(0, 10);
     const filename = `pluralnest_backup_${date}.json`;
 
+    // ── Web ──────────────────────────────────────────────────────────────────
     if (Platform.OS === "web") {
       try {
         const blob = new Blob([json], { type: "application/json" });
@@ -71,10 +70,32 @@ export default function ExportScreen() {
       return;
     }
 
-    // Step 1: write file — if this fails, show an error.
+    // ── Android — Storage Access Framework (lets user pick save location) ────
+    if (Platform.OS === "android") {
+      try {
+        const perms = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (perms.granted) {
+          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            perms.directoryUri,
+            filename,
+            "application/json"
+          );
+          await FileSystem.writeAsStringAsync(fileUri, json, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+          flash(setExportStatus, { type: "success", msg: `Saved "${filename}" to the selected folder!` });
+          return;
+        }
+        // User cancelled the folder picker — fall through to share sheet
+      } catch (err) {
+        // SAF unavailable on this device — fall through to share sheet
+      }
+    }
+
+    // ── iOS + Android fallback — write to cache then share ───────────────────
     let path = "";
     try {
-      path = `${FileSystem.documentDirectory}${filename}`;
+      path = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(path, json, {
         encoding: FileSystem.EncodingType.UTF8,
       });
@@ -83,9 +104,7 @@ export default function ExportScreen() {
       return;
     }
 
-    // Step 2: open the share sheet. Any throw here (incl. user dismissal,
-    // RESULT_CANCELED, activity-result errors, etc.) is treated as a
-    // normal close — the file is already saved so we still report success.
+    let shareSucceeded = false;
     try {
       const Sharing = await import("expo-sharing");
       const canShare = await Sharing.isAvailableAsync();
@@ -95,12 +114,17 @@ export default function ExportScreen() {
           dialogTitle: "Save PluralNest Backup",
           UTI: "public.json",
         });
+        shareSucceeded = true;
       }
     } catch {
-      // Share sheet closed or unavailable — file is written, treat as success.
+      // share sheet dismissed or failed
     }
 
-    flash(setExportStatus, { type: "success", msg: "Backup ready to share!" });
+    if (shareSucceeded) {
+      flash(setExportStatus, { type: "success", msg: "Backup shared — save it somewhere safe!" });
+    } else {
+      flash(setExportStatus, { type: "error", msg: "Sharing unavailable. Use the paste section below to copy the JSON manually." });
+    }
   };
 
   const pickAndImport = async () => {
@@ -233,7 +257,11 @@ export default function ExportScreen() {
       >
         <Feather name="download" size={18} color={colors.primaryForeground} />
         <Text style={[styles.btnText, { color: colors.primaryForeground }]}>
-          {Platform.OS === "web" ? "Download Backup File" : "Share / Save Backup"}
+          {Platform.OS === "web"
+            ? "Download Backup File"
+            : Platform.OS === "android"
+            ? "Save Backup to Folder…"
+            : "Share / Save Backup"}
         </Text>
       </TouchableOpacity>
 
