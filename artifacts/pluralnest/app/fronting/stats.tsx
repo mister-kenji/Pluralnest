@@ -15,7 +15,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { formatDuration } from "@/utils/helpers";
-import { MOODS } from "@/utils/moods";
+import { MOODS, SCALE_MOODS, EXTRA_MOODS } from "@/utils/moods";
 
 type Period = "7d" | "30d" | "all";
 
@@ -123,16 +123,25 @@ export default function FrontingStatsScreen() {
 
   // ── Mood stats ────────────────────────────────────────────────────────────
   const moodEntries = useMemo(() => entries.filter((e) => e.mood != null), [entries]);
+  // Scale moods (1-5) — used for bar chart and numeric average
+  const scaleMoodEntries = useMemo(() => moodEntries.filter((e) => e.mood! >= 1 && e.mood! <= 5), [moodEntries]);
   const moodStats = useMemo(() => {
-    return MOODS.map((m) => ({
+    return SCALE_MOODS.map((m) => ({
       ...m,
-      count: moodEntries.filter((e) => e.mood === m.value).length,
+      count: scaleMoodEntries.filter((e) => e.mood === m.value).length,
     }));
-  }, [moodEntries]);
+  }, [scaleMoodEntries]);
   const maxMoodCount = Math.max(...moodStats.map((m) => m.count), 1);
-  const avgMood = moodEntries.length > 0
-    ? moodEntries.reduce((sum, e) => sum + e.mood!, 0) / moodEntries.length
+  const avgMood = scaleMoodEntries.length > 0
+    ? scaleMoodEntries.reduce((sum, e) => sum + e.mood!, 0) / scaleMoodEntries.length
     : null;
+  // Extra emotion tags — only show ones actually used
+  const emotionStats = useMemo(() => {
+    return EXTRA_MOODS
+      .map((m) => ({ ...m, count: moodEntries.filter((e) => e.mood === m.value).length }))
+      .filter((m) => m.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [moodEntries]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -256,7 +265,7 @@ export default function FrontingStatsScreen() {
                       <View style={styles.avgMoodRight}>
                         {(() => {
                           const rounded = Math.round(avgMood);
-                          const meta = MOODS.find((m) => m.value === rounded);
+                          const meta = SCALE_MOODS.find((m) => m.value === rounded);
                           return meta ? (
                             <>
                               <Text style={styles.avgMoodEmoji}>{meta.emoji}</Text>
@@ -294,6 +303,23 @@ export default function FrontingStatsScreen() {
                     Based on {moodEntries.length} of {totalSessions} sessions with a mood logged
                   </Text>
                 </View>
+                {emotionStats.length > 0 && (
+                  <>
+                    <Text style={[styles.emotionTagsTitle, { color: colors.mutedForeground }]}>Emotion tags logged</Text>
+                    <View style={styles.emotionTagsRow}>
+                      {emotionStats.map((m) => (
+                        <View
+                          key={m.value}
+                          style={[styles.emotionTag, { backgroundColor: m.color + "22", borderColor: m.color + "55" }]}
+                        >
+                          <Text style={styles.emotionTagEmoji}>{m.emoji}</Text>
+                          <Text style={[styles.emotionTagLabel, { color: m.color }]}>{m.label}</Text>
+                          <Text style={[styles.emotionTagCount, { color: m.color }]}>×{m.count}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                )}
               </>
             )}
           </>
@@ -382,6 +408,21 @@ const styles = StyleSheet.create({
   moodBarWrap: { flex: 1 },
   moodStatCount: { fontSize: 12, fontFamily: "Inter_600SemiBold", minWidth: 20, textAlign: "right" },
   moodFootnote: { fontSize: 11, fontFamily: "Inter_400Regular", fontStyle: "italic", marginTop: 4 },
+
+  emotionTagsTitle: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 12, marginBottom: 8, marginLeft: 2 },
+  emotionTagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  emotionTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  emotionTagEmoji: { fontSize: 14 },
+  emotionTagLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  emotionTagCount: { fontSize: 11, fontFamily: "Inter_400Regular", opacity: 0.8 },
 
   emptyBox: {
     borderRadius: 14,

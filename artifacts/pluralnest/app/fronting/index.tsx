@@ -21,7 +21,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useStorage, FrontEntry, FrontStatus } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatDate, formatTime, formatDuration } from "@/utils/helpers";
-import { MOODS } from "@/utils/moods";
+import { MOODS, SCALE_MOODS, EXTRA_MOODS } from "@/utils/moods";
 
 export { MOODS };
 
@@ -42,6 +42,7 @@ export default function FrontingLogScreen() {
   const [customStatus, setCustomStatus] = useState("");
   const [switchNote, setSwitchNote] = useState("");
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
+  const [showMoreMoods, setShowMoreMoods] = useState(false);
   const [filterDate, setFilterDate] = useState("");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -412,8 +413,9 @@ export default function FrontingLogScreen() {
 
             {/* ── Mood check-in ── */}
             <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>How are you feeling? (optional)</Text>
+            {/* Scale moods row */}
             <View style={styles.moodRow}>
-              {MOODS.map((m) => (
+              {SCALE_MOODS.map((m) => (
                 <TouchableOpacity
                   key={m.value}
                   style={[
@@ -423,7 +425,7 @@ export default function FrontingLogScreen() {
                       backgroundColor: selectedMood === m.value ? m.color + "22" : colors.secondary,
                     },
                   ]}
-                  onPress={() => setSelectedMood(selectedMood === m.value ? null : m.value)}
+                  onPress={() => { setSelectedMood(selectedMood === m.value ? null : m.value); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
                   <Text style={styles.moodBtnEmoji}>{m.emoji}</Text>
                   <Text style={[styles.moodBtnLabel, { color: selectedMood === m.value ? m.color : colors.mutedForeground }]}>
@@ -432,6 +434,39 @@ export default function FrontingLogScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            {/* Extra emotions grid */}
+            {showMoreMoods && (
+              <View style={styles.moodExtraGrid}>
+                {EXTRA_MOODS.map((m) => (
+                  <TouchableOpacity
+                    key={m.value}
+                    style={[
+                      styles.moodExtraBtn,
+                      {
+                        borderColor: selectedMood === m.value ? m.color : colors.border,
+                        backgroundColor: selectedMood === m.value ? m.color + "22" : colors.secondary,
+                      },
+                    ]}
+                    onPress={() => { setSelectedMood(selectedMood === m.value ? null : m.value); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  >
+                    <Text style={styles.moodBtnEmoji}>{m.emoji}</Text>
+                    <Text style={[styles.moodBtnLabel, { color: selectedMood === m.value ? m.color : colors.mutedForeground }]}>
+                      {m.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {/* Show more / less toggle */}
+            <TouchableOpacity
+              style={styles.moodExpandBtn}
+              onPress={() => { setShowMoreMoods((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <Feather name={showMoreMoods ? "chevron-up" : "chevron-down"} size={13} color={colors.mutedForeground} />
+              <Text style={[styles.moodExpandLabel, { color: colors.mutedForeground }]}>
+                {showMoreMoods ? "Show fewer emotions" : "More emotions…"}
+              </Text>
+            </TouchableOpacity>
 
             <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>
               Switch Note (optional)
@@ -616,6 +651,31 @@ const styles = StyleSheet.create({
   },
   moodBtnEmoji: { fontSize: 20 },
   moodBtnLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
+  moodExtraGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  moodExtraBtn: {
+    width: "18%",
+    minWidth: 58,
+    alignItems: "center",
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 4,
+  },
+  moodExpandBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  moodExpandLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
   modalInput: {
     borderWidth: 1,
     borderRadius: 10,
