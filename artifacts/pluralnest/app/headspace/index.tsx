@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
@@ -168,7 +168,7 @@ export default function HeadspaceScreen() {
               style={[styles.viewToggleBtn, view === "board" && { backgroundColor: colors.card }]}
               onPress={() => { setView("board"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             >
-              <Feather name="share-2" size={15} color={view === "board" ? colors.foreground : colors.mutedForeground} />
+              <MaterialCommunityIcons name="pin" size={16} color={view === "board" ? colors.foreground : colors.mutedForeground} />
             </TouchableOpacity>
           </View>
           {view === "list" && (
