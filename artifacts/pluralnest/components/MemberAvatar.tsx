@@ -59,7 +59,8 @@ export function MemberAvatar({
             width: size,
             height: size,
             borderRadius,
-            backgroundColor: color + "33",
+            // Suppress the tint when an image is shown so transparent PNGs look clean
+            backgroundColor: showImage ? "transparent" : color + "33",
             borderWidth: Math.max(1.5, size * 0.025),
             borderColor: color,
           },
@@ -70,7 +71,7 @@ export function MemberAvatar({
           <Image
             source={{ uri: profileImage }}
             style={{ width: size - 4, height: size - 4, borderRadius: Math.max(0, borderRadius - 2) }}
-            contentFit="cover"
+            contentFit="contain"
             onError={() => setImgFailed(true)}
           />
         ) : initials ? (
@@ -94,7 +95,8 @@ export function MemberAvatar({
           </ClipPath>
         </Defs>
 
-        <Path d={shapePath} fill={color + "33"} />
+        {/* Only draw the tinted fill when no image is present — transparent PNGs look clean without it */}
+        {!showImage && <Path d={shapePath} fill={color + "33"} />}
 
         {showImage ? (
           <SvgImage
@@ -103,7 +105,7 @@ export function MemberAvatar({
             y="0"
             width="100"
             height="100"
-            preserveAspectRatio="xMidYMid slice"
+            preserveAspectRatio="xMidYMid meet"
             clipPath={`url(#${clipId})`}
           />
         ) : initials ? (

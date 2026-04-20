@@ -102,9 +102,8 @@ export default function EditMemberScreen() {
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
+      // No allowsEditing — keeps PNG transparency intact (shape mask clips it anyway)
+      quality: 0.9,
     });
     if (!result.canceled && result.assets[0]) {
       setProfileImage(await persistImage(result.assets[0].uri));
