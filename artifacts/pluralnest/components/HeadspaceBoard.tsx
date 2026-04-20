@@ -278,6 +278,7 @@ export function HeadspaceBoard() {
       {/* ── Canvas ── */}
       <View
         style={styles.canvasContainer}
+        {...panResponder.panHandlers}
         onLayout={(e) => {
           boardLayoutRef.current = {
             width: e.nativeEvent.layout.width,
@@ -287,7 +288,6 @@ export function HeadspaceBoard() {
       >
         <Animated.View
           style={[styles.canvas, { transform: canvasOffset.getTranslateTransform() }]}
-          {...panResponder.panHandlers}
         >
           {/* SVG link lines */}
           <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
