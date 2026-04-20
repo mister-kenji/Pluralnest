@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
 import {
   Platform,
@@ -18,7 +20,7 @@ import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 
-type Status = { type: "success" | "error"; msg: string } | null;
+type Status = { type: "success" | "error" | "info"; msg: string } | null;
 
 export default function ExportScreen() {
   const colors = useColors();
@@ -29,12 +31,24 @@ export default function ExportScreen() {
   const [exportStatus, setExportStatus] = useState<Status>(null);
   const [importStatus, setImportStatus] = useState<Status>(null);
   const [confirmImport, setConfirmImport] = useState<{ json: string } | null>(null);
+  const [copiedFallback, setCopiedFallback] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
-  const flash = (setter: (s: Status) => void, status: Status) => {
+  const flash = (setter: (s: Status) => void, status: Status, duration = 4000) => {
     setter(status);
-    setTimeout(() => setter(null), 3500);
+    setTimeout(() => setter(null), duration);
+  };
+
+  const copyToClipboard = async (json: string) => {
+    try {
+      await Clipboard.setStringAsync(json);
+      setCopiedFallback(true);
+      setTimeout(() => setCopiedFallback(false), 3000);
+      flash(setExportStatus, { type: "success", msg: "Backup JSON copied to clipboard — paste it somewhere safe!" });
+    } catch {
+      flash(setExportStatus, { type: "error", msg: "Could not copy to clipboard. Try the paste section below." });
+    }
   };
 
   const doExport = async () => {
@@ -70,43 +84,21 @@ export default function ExportScreen() {
       return;
     }
 
-    // ── Android — Storage Access Framework (lets user pick save location) ────
-    if (Platform.OS === "android") {
-      try {
-        const perms = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (perms.granted) {
-          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-            perms.directoryUri,
-            filename,
-            "application/json"
-          );
-          await FileSystem.writeAsStringAsync(fileUri, json, {
-            encoding: FileSystem.EncodingType.UTF8,
-          });
-          flash(setExportStatus, { type: "success", msg: `Saved "${filename}" to the selected folder!` });
-          return;
-        }
-        // User cancelled the folder picker — fall through to share sheet
-      } catch (err) {
-        // SAF unavailable on this device — fall through to share sheet
-      }
-    }
-
-    // ── iOS + Android fallback — write to cache then share ───────────────────
-    let path = "";
+    // ── Mobile (iOS + Android) — write to cache then share ───────────────────
+    // Step 1: Write file to cache directory
+    const path = `${FileSystem.cacheDirectory}${filename}`;
     try {
-      path = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(path, json, {
         encoding: FileSystem.EncodingType.UTF8,
       });
     } catch {
-      flash(setExportStatus, { type: "error", msg: "Export failed — could not write file." });
+      // File write failed — go straight to clipboard
+      await copyToClipboard(json);
       return;
     }
 
-    let shareSucceeded = false;
+    // Step 2: Try sharing the file
     try {
-      const Sharing = await import("expo-sharing");
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(path, {
@@ -114,17 +106,16 @@ export default function ExportScreen() {
           dialogTitle: "Save PluralNest Backup",
           UTI: "public.json",
         });
-        shareSucceeded = true;
+        // shareAsync resolves after the sheet is dismissed — treat as success
+        flash(setExportStatus, { type: "success", msg: "Backup shared! Save the file somewhere safe." });
+        return;
       }
     } catch {
-      // share sheet dismissed or failed
+      // Share sheet failed or was cancelled — fall through to clipboard
     }
 
-    if (shareSucceeded) {
-      flash(setExportStatus, { type: "success", msg: "Backup shared — save it somewhere safe!" });
-    } else {
-      flash(setExportStatus, { type: "error", msg: "Sharing unavailable. Use the paste section below to copy the JSON manually." });
-    }
+    // Step 3: Clipboard fallback — always works
+    await copyToClipboard(json);
   };
 
   const pickAndImport = async () => {
@@ -158,15 +149,12 @@ export default function ExportScreen() {
         flash(setImportStatus, { type: "error", msg: "Could not read file. Paste JSON below instead." });
         return;
       }
-      // On Android the URI may be a content:// URI even after copyToCacheDirectory;
-      // reading via FileSystem.readAsStringAsync handles both file:// and cached paths.
       let fileJson: string;
       try {
         fileJson = await FileSystem.readAsStringAsync(asset.uri, {
           encoding: FileSystem.EncodingType.UTF8,
         });
       } catch {
-        // Fallback: if the URI is not directly readable, check if a local URI is provided
         if (asset.file) {
           fileJson = await new Promise<string>((res, rej) => {
             const reader = new (globalThis as any).FileReader();
@@ -208,6 +196,11 @@ export default function ExportScreen() {
   } catch {
     previewJson = "(could not load preview)";
   }
+
+  const statusColor = (type: "success" | "error" | "info") =>
+    type === "success" ? "#22c55e" : type === "error" ? "#ef4444" : colors.primary;
+  const statusIcon = (type: "success" | "error" | "info") =>
+    type === "success" ? "check-circle" : type === "error" ? "alert-circle" : "info";
 
   return (
     <ScrollView
@@ -257,25 +250,42 @@ export default function ExportScreen() {
       >
         <Feather name="download" size={18} color={colors.primaryForeground} />
         <Text style={[styles.btnText, { color: colors.primaryForeground }]}>
-          {Platform.OS === "web"
-            ? "Download Backup File"
-            : Platform.OS === "android"
-            ? "Save Backup to Folder…"
-            : "Share / Save Backup"}
+          {Platform.OS === "web" ? "Download Backup File" : "Share / Save Backup"}
         </Text>
       </TouchableOpacity>
 
+      {/* Clipboard fallback button — always visible on mobile */}
+      {Platform.OS !== "web" && (
+        <TouchableOpacity
+          style={[styles.clipboardBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => {
+            let json = "";
+            try { json = exportData(); } catch { return; }
+            copyToClipboard(json);
+          }}
+        >
+          <Feather
+            name={copiedFallback ? "check" : "copy"}
+            size={16}
+            color={copiedFallback ? "#22c55e" : colors.mutedForeground}
+          />
+          <Text style={[styles.clipboardBtnText, { color: copiedFallback ? "#22c55e" : colors.mutedForeground }]}>
+            {copiedFallback ? "Copied!" : "Copy JSON to Clipboard"}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {exportStatus && (
         <View style={[styles.statusBar, {
-          backgroundColor: exportStatus.type === "success" ? "#22c55e22" : "#ef444422",
-          borderColor: exportStatus.type === "success" ? "#22c55e55" : "#ef444455",
+          backgroundColor: `${statusColor(exportStatus.type)}22`,
+          borderColor: `${statusColor(exportStatus.type)}55`,
         }]}>
           <Feather
-            name={exportStatus.type === "success" ? "check-circle" : "alert-circle"}
+            name={statusIcon(exportStatus.type) as any}
             size={14}
-            color={exportStatus.type === "success" ? "#22c55e" : "#ef4444"}
+            color={statusColor(exportStatus.type)}
           />
-          <Text style={[styles.statusText, { color: exportStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>
+          <Text style={[styles.statusText, { color: statusColor(exportStatus.type) }]}>
             {exportStatus.msg}
           </Text>
         </View>
@@ -285,15 +295,15 @@ export default function ExportScreen() {
 
       {importStatus && (
         <View style={[styles.statusBar, {
-          backgroundColor: importStatus.type === "success" ? "#22c55e22" : "#ef444422",
-          borderColor: importStatus.type === "success" ? "#22c55e55" : "#ef444455",
+          backgroundColor: `${statusColor(importStatus.type)}22`,
+          borderColor: `${statusColor(importStatus.type)}55`,
         }]}>
           <Feather
-            name={importStatus.type === "success" ? "check-circle" : "alert-circle"}
+            name={statusIcon(importStatus.type) as any}
             size={14}
-            color={importStatus.type === "success" ? "#22c55e" : "#ef4444"}
+            color={statusColor(importStatus.type)}
           />
-          <Text style={[styles.statusText, { color: importStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>
+          <Text style={[styles.statusText, { color: statusColor(importStatus.type) }]}>
             {importStatus.msg}
           </Text>
         </View>
@@ -382,9 +392,20 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 12,
     paddingVertical: 14,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   btnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  clipboardBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 11,
+    marginBottom: 12,
+  },
+  clipboardBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   statusBar: {
     flexDirection: "row",
     alignItems: "center",
