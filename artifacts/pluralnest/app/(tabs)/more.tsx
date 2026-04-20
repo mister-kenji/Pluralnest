@@ -18,6 +18,12 @@ type MenuItem = {
   featureKey?: keyof ReturnType<typeof useStorage>["data"]["settings"]["featuresEnabled"];
 };
 
+const systemItems: MenuItem[] = [
+  { icon: "home", label: "System", sublabel: "Name & identity", route: "/system" },
+  { icon: "users", label: "Collective Profile", sublabel: "Description, image & banner", route: "/system/profile" },
+  { icon: "alert-triangle", label: "Emergency Information", sublabel: "Contacts & care notes", route: "/system/emergency" },
+];
+
 const menuGroups: { title: string; items: MenuItem[] }[] = [
   {
     title: "Features",
@@ -29,7 +35,7 @@ const menuGroups: { title: string; items: MenuItem[] }[] = [
     ],
   },
   {
-    title: "System",
+    title: "Configuration",
     items: [
       { icon: "image", label: "Assets", sublabel: "Reusable images for descriptions", route: "/assets" },
       { icon: "settings", label: "Settings", sublabel: "Customize & configure", route: "/settings" },
@@ -43,7 +49,6 @@ function closeApp() {
   if (Platform.OS === "android") {
     BackHandler.exitApp();
   } else {
-    // iOS: no official API — terminates the JS runtime
     try { (globalThis as any).process?.exit?.(0); } catch {}
   }
 }
@@ -57,117 +62,98 @@ export default function MoreScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomClearance = useBottomTabClearance(16);
 
+  const renderGroup = (title: string, items: MenuItem[], showPanic = false) => {
+    const visibleItems = items.filter((item) => {
+      if (!item.featureKey) return true;
+      return data.settings.featuresEnabled[item.featureKey];
+    });
+
+    return (
+      <View key={title} style={styles.group}>
+        <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{title}</Text>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {visibleItems.map((item, idx) => {
+            const isLast = idx === visibleItems.length - 1 && !showPanic;
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={[
+                  styles.menuItem,
+                  !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (item.route) router.push(item.route as any);
+                }}
+              >
+                <View style={[styles.iconWrap, { backgroundColor: (item.color ?? colors.primary) + "1a" }]}>
+                  <Feather name={item.icon} size={18} color={item.color ?? colors.primary} />
+                </View>
+                <View style={styles.menuText}>
+                  <Text style={[styles.menuLabel, { color: item.color ?? colors.foreground }]}>{item.label}</Text>
+                  {item.sublabel && (
+                    <Text style={[styles.menuSublabel, { color: colors.mutedForeground }]}>{item.sublabel}</Text>
+                  )}
+                </View>
+                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            );
+          })}
+
+          {showPanic && (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                closeApp();
+              }}
+            >
+              <View style={[styles.iconWrap, { backgroundColor: colors.primary + "1a" }]}>
+                <Feather name="book-open" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.menuText}>
+                <Text style={[styles.menuLabel, { color: colors.foreground }]}>Markdown Guide</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{
-        paddingTop: topInset + 16,
-        paddingBottom: bottomClearance,
-        paddingHorizontal: 16,
-      }}
+      contentContainerStyle={{ paddingTop: topInset + 16, paddingBottom: bottomClearance, paddingHorizontal: 16 }}
       showsVerticalScrollIndicator={false}
     >
       <Text style={[styles.title, { color: colors.foreground }]}>More</Text>
 
-      {menuGroups.map((group) => (
-        <View key={group.title} style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{group.title}</Text>
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {group.items
-              .filter((item) => {
-                if (!item.featureKey) return true;
-                return data.settings.featuresEnabled[item.featureKey];
-              })
-              .map((item, idx, arr) => {
-                const isLast = idx === arr.length - 1 && !(group.title === "System" && panicEnabled);
-                return (
-                  <TouchableOpacity
-                    key={item.label}
-                    style={[
-                      styles.menuItem,
-                      !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border },
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      if (item.route) router.push(item.route as any);
-                    }}
-                  >
-                    <View
-                      style={[
-                        styles.iconWrap,
-                        { backgroundColor: (item.color ?? colors.primary) + "1a" },
-                      ]}
-                    >
-                      <Feather
-                        name={item.icon}
-                        size={18}
-                        color={item.color ?? colors.primary}
-                      />
-                    </View>
-                    <View style={styles.menuText}>
-                      <Text
-                        style={[styles.menuLabel, { color: item.color ?? colors.foreground }]}
-                      >
-                        {item.label}
-                      </Text>
-                      {item.sublabel && (
-                        <Text style={[styles.menuSublabel, { color: colors.mutedForeground }]}>
-                          {item.sublabel}
-                        </Text>
-                      )}
-                    </View>
-                    <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                );
-              })}
+      {/* System section */}
+      {renderGroup("System", systemItems)}
 
-            {group.title === "System" && panicEnabled && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-                  closeApp();
-                }}
-              >
-                <View style={[styles.iconWrap, { backgroundColor: colors.primary + "1a" }]}>
-                  <Feather name="book-open" size={18} color={colors.primary} />
-                </View>
-                <View style={styles.menuText}>
-                  <Text style={[styles.menuLabel, { color: colors.foreground }]}>
-                    Markdown Guide
-                  </Text>
-                </View>
-                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      ))}
+      {/* Features + Configuration */}
+      {menuGroups.map((g) =>
+        renderGroup(g.title, g.items, g.title === "Configuration" && panicEnabled),
+      )}
 
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 12 }]}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 4 }]}>
         <View style={styles.infoRow}>
           <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>System name</Text>
-          <Text style={[styles.infoValue, { color: colors.foreground }]}>
-            {data.settings.systemName}
-          </Text>
+          <Text style={[styles.infoValue, { color: colors.foreground }]}>{data.settings.systemName}</Text>
         </View>
         <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: colors.border }]}>
           <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Members</Text>
-          <Text style={[styles.infoValue, { color: colors.foreground }]}>
-            {data.members.filter((m) => !m.isArchived).length}
-          </Text>
+          <Text style={[styles.infoValue, { color: colors.foreground }]}>{data.members.filter((m) => !m.isArchived).length}</Text>
         </View>
         <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: colors.border }]}>
           <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Journals</Text>
-          <Text style={[styles.infoValue, { color: colors.foreground }]}>
-            {data.journalEntries.length}
-          </Text>
+          <Text style={[styles.infoValue, { color: colors.foreground }]}>{data.journalEntries.length}</Text>
         </View>
       </View>
 
-      <Text style={[styles.version, { color: colors.mutedForeground }]}>
-        PluralNest · Privacy-first
-      </Text>
+      <Text style={[styles.version, { color: colors.mutedForeground }]}>PluralNest · Privacy-first</Text>
     </ScrollView>
   );
 }
@@ -184,42 +170,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginLeft: 4,
   },
-  card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  card: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
+  menuItem: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   menuText: { flex: 1 },
   menuLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
   menuSublabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+  infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   infoLabel: { fontSize: 14, fontFamily: "Inter_400Regular" },
   infoValue: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  version: {
-    textAlign: "center",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 12,
-    marginBottom: 8,
-  },
+  version: { textAlign: "center", fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 12, marginBottom: 8 },
 });

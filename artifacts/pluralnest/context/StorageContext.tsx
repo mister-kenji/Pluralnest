@@ -171,6 +171,25 @@ export type DeletedItem = {
   deletedAt: number;
 };
 
+export type EmergencyContact = {
+  id: string;
+  name: string;
+  relationship: string;
+  phone?: string;
+  notes?: string;
+};
+
+export type EmergencyInfo = {
+  content: string;
+  contacts: EmergencyContact[];
+};
+
+export type SystemProfile = {
+  description: string;
+  profileImage?: string;
+  bannerImage?: string;
+};
+
 export type AppSettings = {
   accentColor: string;
   screenLockEnabled: boolean;
@@ -212,6 +231,8 @@ type AppData = {
   deletedItems: DeletedItem[];
   assets: Asset[];
   settings: AppSettings;
+  systemProfile: SystemProfile;
+  emergencyInfo: EmergencyInfo;
 };
 
 const defaultSettings: AppSettings = {
@@ -253,6 +274,8 @@ const defaultData: AppData = {
   deletedItems: [],
   assets: [],
   settings: defaultSettings,
+  systemProfile: { description: "" },
+  emergencyInfo: { content: "", contacts: [] },
 };
 
 type StorageContextType = {
@@ -275,6 +298,8 @@ type StorageContextType = {
   updateDeletedItems: (items: DeletedItem[]) => void;
   updateAssets: (assets: Asset[]) => void;
   updateSettings: (settings: AppSettings) => void;
+  updateSystemProfile: (profile: SystemProfile) => void;
+  updateEmergencyInfo: (info: EmergencyInfo) => void;
   softDelete: (id: string, type: DeletedItem["type"], data: unknown) => void;
   restoreDeleted: (id: string) => DeletedItem | undefined;
   purgeOldDeleted: () => void;
@@ -485,6 +510,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     updateDeletedItems: (v) => update("deletedItems", v),
     updateAssets: (v) => update("assets", v),
     updateSettings: (v) => update("settings", v),
+    updateSystemProfile: (v) => update("systemProfile", v),
+    updateEmergencyInfo: (v) => update("emergencyInfo", v),
     softDelete,
     restoreDeleted,
     purgeOldDeleted,

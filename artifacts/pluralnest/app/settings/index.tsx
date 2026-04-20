@@ -74,18 +74,6 @@ export default function SettingsScreen() {
         <View style={{ width: 22 }} />
       </View>
 
-      <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>System</Text>
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>System Name</Text>
-        <TextInput
-          style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
-          value={settings.systemName}
-          onChangeText={(v) => updateSettings({ ...settings, systemName: v })}
-          placeholder="My System"
-          placeholderTextColor={colors.mutedForeground}
-        />
-      </View>
-
       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Accent Color</Text>
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.colorGrid}>
