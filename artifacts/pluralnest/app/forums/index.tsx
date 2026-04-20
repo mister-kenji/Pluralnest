@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TagChip } from "@/components/TagChip";
 import { EmptyState } from "@/components/EmptyState";
+import { SectionLockGate } from "@/components/SectionLockGate";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { formatRelative } from "@/utils/helpers";
@@ -36,6 +37,7 @@ export default function ForumsScreen() {
   }, [data.forumPosts, search]);
 
   return (
+    <SectionLockGate sectionKey="forums">
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
@@ -140,6 +142,7 @@ export default function ForumsScreen() {
         }}
       />
     </View>
+    </SectionLockGate>
   );
 }
 

@@ -1,4 +1,5 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { SectionLockGate } from "@/components/SectionLockGate";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
@@ -149,6 +150,7 @@ export default function HeadspaceScreen() {
   };
 
   return (
+    <SectionLockGate sectionKey="headspace">
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.topBar, { paddingTop: topInset + 12, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -278,6 +280,7 @@ export default function HeadspaceScreen() {
         </View>
       </Modal>}
     </View>
+    </SectionLockGate>
   );
 }
 

@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ConfirmSheet } from "@/components/ConfirmSheet";
+import { SectionLockGate } from "@/components/SectionLockGate";
 import { useStorage, EmergencyContact } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
@@ -67,6 +68,7 @@ export default function EmergencyScreen() {
   };
 
   return (
+    <SectionLockGate sectionKey="emergency">
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ConfirmSheet
         visible={!!deleteId}
@@ -230,6 +232,7 @@ export default function EmergencyScreen() {
         )}
       </ScrollView>
     </View>
+    </SectionLockGate>
   );
 }
 

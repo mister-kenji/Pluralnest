@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { SectionLockGate } from "@/components/SectionLockGate";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
@@ -293,6 +294,7 @@ export default function ChatScreen() {
     : "Move this message to recently deleted?";
 
   return (
+    <SectionLockGate sectionKey="chat">
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ConfirmSheet
         visible={!!pendingDelete}
@@ -552,6 +554,7 @@ export default function ChatScreen() {
         </>
       )}
     </View>
+    </SectionLockGate>
   );
 }
 

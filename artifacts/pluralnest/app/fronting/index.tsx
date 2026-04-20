@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { FrontingBadge } from "@/components/FrontingBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { SectionLockGate } from "@/components/SectionLockGate";
 import { useStorage, FrontEntry, FrontStatus } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatDate, formatTime, formatDuration } from "@/utils/helpers";
@@ -234,6 +235,7 @@ export default function FrontingLogScreen() {
   };
 
   return (
+    <SectionLockGate sectionKey="frontingLog">
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
@@ -695,6 +697,7 @@ export default function FrontingLogScreen() {
         </View>
       </Modal>
     </View>
+    </SectionLockGate>
   );
 }
 

@@ -191,10 +191,14 @@ export type SystemProfile = {
   bannerImage?: string;
 };
 
+export type SectionKey = "emergency" | "forums" | "chat" | "frontingLog" | "headspace";
+
 export type AppSettings = {
   accentColor: string;
   screenLockEnabled: boolean;
   screenLockCode: string;
+  lockOnStartup: boolean;
+  lockedSections: Record<SectionKey, boolean>;
   panicCloseEnabled: boolean;
   encryptionEnabled: boolean;
   easyMode: boolean;
@@ -236,10 +240,20 @@ type AppData = {
   emergencyInfo: EmergencyInfo;
 };
 
+const defaultLockedSections: Record<SectionKey, boolean> = {
+  emergency: false,
+  forums: false,
+  chat: false,
+  frontingLog: false,
+  headspace: false,
+};
+
 const defaultSettings: AppSettings = {
   accentColor: "#aaaaaa",
   screenLockEnabled: false,
   screenLockCode: "",
+  lockOnStartup: true,
+  lockedSections: { ...defaultLockedSections },
   panicCloseEnabled: false,
   encryptionEnabled: true,
   easyMode: false,
@@ -371,6 +385,11 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
                 ...defaultSettings.featuresEnabled,
                 ...savedFeaturesEnabled,
               },
+              lockedSections: {
+                ...defaultLockedSections,
+                ...((savedSettings as Partial<AppSettings>).lockedSections ?? {}),
+              },
+              lockOnStartup: (savedSettings as Partial<AppSettings>).lockOnStartup ?? true,
               hasCompletedOnboarding:
                 (savedSettings as Partial<AppSettings>).hasCompletedOnboarding ??
                 hasExistingData,
@@ -487,6 +506,11 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
               ...defaultSettings.featuresEnabled,
               ...savedFeatures,
             },
+            lockedSections: {
+              ...defaultLockedSections,
+              ...((savedSettings as Partial<AppSettings>).lockedSections ?? {}),
+            },
+            lockOnStartup: (savedSettings as Partial<AppSettings>).lockOnStartup ?? true,
           },
         };
         setData(next);
