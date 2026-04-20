@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
 import {
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,11 +18,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 
-type Status = { type: "success" | "error" | "info"; msg: string } | null;
+type Status = { type: "success" | "error"; msg: string } | null;
 
 export default function ExportScreen() {
   const colors = useColors();
@@ -30,8 +30,6 @@ export default function ExportScreen() {
   const [showImport, setShowImport] = useState(false);
   const [pasteJson, setPasteJson] = useState("");
   const [exportStatus, setExportStatus] = useState<Status>(null);
-  const [importStatus, setImportStatus] = useState<Status>(null);
-  const [confirmImport, setConfirmImport] = useState<{ json: string } | null>(null);
   const [copiedFallback, setCopiedFallback] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -41,6 +39,48 @@ export default function ExportScreen() {
     setTimeout(() => setter(null), duration);
   };
 
+  // ── Confirm import via native Alert (guaranteed on Android) ─────────────
+  const confirmAndImport = (json: string) => {
+    if (Platform.OS === "web") {
+      // Web: use browser confirm
+      const ok = window.confirm(
+        "This will replace ALL your current data with the backup. Continue?"
+      );
+      if (!ok) return;
+      runImport(json);
+      return;
+    }
+    Alert.alert(
+      "Import Backup",
+      "This will replace all your current data with the backup. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Import",
+          style: "destructive",
+          onPress: () => runImport(json),
+        },
+      ]
+    );
+  };
+
+  const runImport = (json: string) => {
+    const ok = importData(json);
+    if (ok) {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+      Alert.alert("Imported!", "Your data has been restored successfully.");
+      setPasteJson("");
+      setShowImport(false);
+    } else {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
+      Alert.alert(
+        "Import Failed",
+        "The file doesn't look like a valid PluralNest backup. Make sure you're using a backup exported from this app."
+      );
+    }
+  };
+
+  // ── Copy to clipboard (export fallback) ─────────────────────────────────
   const copyToClipboard = async (json: string) => {
     try {
       await Clipboard.setStringAsync(json);
@@ -48,10 +88,11 @@ export default function ExportScreen() {
       setTimeout(() => setCopiedFallback(false), 3000);
       flash(setExportStatus, { type: "success", msg: "Backup JSON copied to clipboard — paste it somewhere safe!" });
     } catch {
-      flash(setExportStatus, { type: "error", msg: "Could not copy to clipboard. Try the paste section below." });
+      flash(setExportStatus, { type: "error", msg: "Could not copy to clipboard." });
     }
   };
 
+  // ── Export ───────────────────────────────────────────────────────────────
   const doExport = async () => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
 
@@ -66,7 +107,6 @@ export default function ExportScreen() {
     const date = new Date().toISOString().slice(0, 10);
     const filename = `pluralnest_backup_${date}.json`;
 
-    // ── Web ──────────────────────────────────────────────────────────────────
     if (Platform.OS === "web") {
       try {
         const blob = new Blob([json], { type: "application/json" });
@@ -80,25 +120,21 @@ export default function ExportScreen() {
         URL.revokeObjectURL(url);
         flash(setExportStatus, { type: "success", msg: "Download started!" });
       } catch {
-        flash(setExportStatus, { type: "error", msg: "Download failed — copy the JSON below instead." });
+        flash(setExportStatus, { type: "error", msg: "Download failed." });
       }
       return;
     }
 
-    // ── Mobile (iOS + Android) — write to cache then share ───────────────────
-    // Step 1: Write file to cache directory
     const path = `${FileSystem.cacheDirectory}${filename}`;
     try {
       await FileSystem.writeAsStringAsync(path, json, {
         encoding: FileSystem.EncodingType.UTF8,
       });
     } catch {
-      // File write failed — go straight to clipboard
       await copyToClipboard(json);
       return;
     }
 
-    // Step 2: Try sharing the file
     try {
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -107,31 +143,27 @@ export default function ExportScreen() {
           dialogTitle: "Save PluralNest Backup",
           UTI: "public.json",
         });
-        // shareAsync resolves after the sheet is dismissed — treat as success
         flash(setExportStatus, { type: "success", msg: "Backup shared! Save the file somewhere safe." });
         return;
       }
-    } catch {
-      // Share sheet failed or was cancelled — fall through to clipboard
-    }
+    } catch {}
 
-    // Step 3: Clipboard fallback — always works
     await copyToClipboard(json);
   };
 
+  // ── Import: read a URI (file:// or content://) ──────────────────────────
   const readUriAsText = async (uri: string): Promise<string> => {
-    // Try FileSystem first (works for file:// and cached content:// on most devices)
     try {
       return await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.UTF8,
       });
     } catch {}
-    // Fallback: fetch() handles Android content:// URIs reliably on native
     const resp = await fetch(uri);
     if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
     return resp.text();
   };
 
+  // ── Import: file picker ──────────────────────────────────────────────────
   const pickAndImport = async () => {
     if (Platform.OS === "web") {
       try {
@@ -142,11 +174,11 @@ export default function ExportScreen() {
           const file = el.files?.[0];
           if (!file) return;
           const text = await file.text();
-          setConfirmImport({ json: text });
+          confirmAndImport(text);
         };
         el.click();
       } catch {
-        flash(setImportStatus, { type: "error", msg: "File picker unavailable on web. Paste JSON below." });
+        Alert.alert("Error", "File picker unavailable on web. Paste JSON below.");
       }
       return;
     }
@@ -159,54 +191,52 @@ export default function ExportScreen() {
       if (result.canceled) return;
       const asset = result.assets?.[0];
       if (!asset?.uri) {
-        flash(setImportStatus, { type: "error", msg: "No file selected." });
+        Alert.alert("Error", "No file was selected.");
         return;
       }
       const fileJson = await readUriAsText(asset.uri);
-      setConfirmImport({ json: fileJson });
+      confirmAndImport(fileJson);
     } catch (err: any) {
-      flash(setImportStatus, {
-        type: "error",
-        msg: "Could not read file — try copying the JSON to clipboard and using 'Paste from Clipboard' instead.",
-      });
+      Alert.alert(
+        "Could Not Read File",
+        "Try using 'Paste from Clipboard' instead: first export your backup and tap 'Copy JSON to Clipboard', then come back here and tap 'Paste from Clipboard'."
+      );
     }
   };
 
+  // ── Import: clipboard ────────────────────────────────────────────────────
   const pasteFromClipboard = async () => {
+    let text = "";
     try {
-      const text = await Clipboard.getStringAsync();
-      if (!text?.trim()) {
-        flash(setImportStatus, { type: "error", msg: "Clipboard is empty." });
-        return;
-      }
-      // Quick sanity check — must look like JSON
-      const trimmed = text.trim();
-      if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-        flash(setImportStatus, { type: "error", msg: "Clipboard doesn't contain JSON data." });
-        return;
-      }
-      setConfirmImport({ json: trimmed });
+      text = (await Clipboard.getStringAsync()) ?? "";
     } catch {
-      flash(setImportStatus, { type: "error", msg: "Could not read clipboard." });
+      Alert.alert("Error", "Could not read clipboard.");
+      return;
     }
+
+    const trimmed = text.trim();
+    if (!trimmed) {
+      Alert.alert(
+        "Clipboard Empty",
+        "No text found on the clipboard. First export your backup and tap 'Copy JSON to Clipboard', then come back here."
+      );
+      return;
+    }
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+      Alert.alert(
+        "Not JSON",
+        "The clipboard doesn't contain a PluralNest backup. It should start with { or [."
+      );
+      return;
+    }
+    confirmAndImport(trimmed);
   };
 
-  const runImport = (json: string) => {
-    const ok = importData(json);
-    if (ok) {
-      flash(setImportStatus, { type: "success", msg: "Data imported successfully!" });
-      setPasteJson("");
-      setShowImport(false);
-      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
-    } else {
-      flash(setImportStatus, { type: "error", msg: "Invalid format. Check your file." });
-      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
-    }
-  };
-
+  // ── Import: manual paste text box ────────────────────────────────────────
   const doImportFromPaste = () => {
-    if (!pasteJson.trim()) return;
-    setConfirmImport({ json: pasteJson.trim() });
+    const trimmed = pasteJson.trim();
+    if (!trimmed) return;
+    confirmAndImport(trimmed);
   };
 
   let previewJson = "";
@@ -216,30 +246,12 @@ export default function ExportScreen() {
     previewJson = "(could not load preview)";
   }
 
-  const statusColor = (type: "success" | "error" | "info") =>
-    type === "success" ? "#22c55e" : type === "error" ? "#ef4444" : colors.primary;
-  const statusIcon = (type: "success" | "error" | "info") =>
-    type === "success" ? "check-circle" : type === "error" ? "alert-circle" : "info";
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingTop: topInset + 8, paddingBottom: 60, paddingHorizontal: 16 }}
       keyboardShouldPersistTaps="handled"
     >
-      <ConfirmSheet
-        visible={!!confirmImport}
-        title="Import Data"
-        message="This will replace all your current data with the backup. This cannot be undone."
-        confirmLabel="Import"
-        onConfirm={() => {
-          const json = confirmImport!.json;
-          setConfirmImport(null);
-          runImport(json);
-        }}
-        onCancel={() => setConfirmImport(null)}
-      />
-
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
@@ -256,6 +268,7 @@ export default function ExportScreen() {
         </Text>
       </View>
 
+      {/* ── EXPORT ─────────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Export</Text>
       <View style={[styles.previewBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
         <Text style={[styles.previewText, { color: colors.mutedForeground }]} selectable>
@@ -273,7 +286,6 @@ export default function ExportScreen() {
         </Text>
       </TouchableOpacity>
 
-      {/* Clipboard fallback button — always visible on mobile */}
       {Platform.OS !== "web" && (
         <TouchableOpacity
           style={[styles.clipboardBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -296,37 +308,22 @@ export default function ExportScreen() {
 
       {exportStatus && (
         <View style={[styles.statusBar, {
-          backgroundColor: `${statusColor(exportStatus.type)}22`,
-          borderColor: `${statusColor(exportStatus.type)}55`,
+          backgroundColor: exportStatus.type === "success" ? "#22c55e22" : "#ef444422",
+          borderColor: exportStatus.type === "success" ? "#22c55e55" : "#ef444455",
         }]}>
           <Feather
-            name={statusIcon(exportStatus.type) as any}
+            name={exportStatus.type === "success" ? "check-circle" : "alert-circle"}
             size={14}
-            color={statusColor(exportStatus.type)}
+            color={exportStatus.type === "success" ? "#22c55e" : "#ef4444"}
           />
-          <Text style={[styles.statusText, { color: statusColor(exportStatus.type) }]}>
+          <Text style={[styles.statusText, { color: exportStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>
             {exportStatus.msg}
           </Text>
         </View>
       )}
 
+      {/* ── IMPORT ─────────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>Import</Text>
-
-      {importStatus && (
-        <View style={[styles.statusBar, {
-          backgroundColor: `${statusColor(importStatus.type)}22`,
-          borderColor: `${statusColor(importStatus.type)}55`,
-        }]}>
-          <Feather
-            name={statusIcon(importStatus.type) as any}
-            size={14}
-            color={statusColor(importStatus.type)}
-          />
-          <Text style={[styles.statusText, { color: statusColor(importStatus.type) }]}>
-            {importStatus.msg}
-          </Text>
-        </View>
-      )}
 
       <TouchableOpacity
         style={[styles.importBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
