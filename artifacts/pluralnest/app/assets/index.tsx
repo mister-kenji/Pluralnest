@@ -13,6 +13,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -21,6 +22,32 @@ import { useColors } from "@/hooks/useColors";
 import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { genId } from "@/utils/helpers";
 import { persistImage } from "@/utils/persistImage";
+
+/** Checkerboard view — visually shows where transparency is */
+function CheckerBg({ style }: { style: ViewStyle }) {
+  const CELL = 10;
+  const cols = 20;
+  const rows = 16;
+  return (
+    <View style={[StyleSheet.absoluteFill, style, { overflow: "hidden" }]} pointerEvents="none">
+      {Array.from({ length: rows }).map((_, r) =>
+        Array.from({ length: cols }).map((_, c) => (
+          <View
+            key={`${r}-${c}`}
+            style={{
+              position: "absolute",
+              left: c * CELL,
+              top: r * CELL,
+              width: CELL,
+              height: CELL,
+              backgroundColor: (r + c) % 2 === 0 ? "#3a3a3a" : "#2a2a2a",
+            }}
+          />
+        ))
+      )}
+    </View>
+  );
+}
 
 export default function AssetsScreen() {
   const colors = useColors();
@@ -129,7 +156,15 @@ export default function AssetsScreen() {
       {/* Pending upload form */}
       {pendingUri && (
         <View style={[styles.pendingCard, { backgroundColor: colors.card, borderColor: colors.primary }]}>
-          <Image source={{ uri: pendingUri }} contentFit="cover" style={styles.pendingPreview} />
+          <View style={styles.pendingPreview}>
+            <CheckerBg style={{}} />
+            <Image
+              source={{ uri: pendingUri }}
+              contentFit="contain"
+              backgroundColor="transparent"
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
           <View style={styles.pendingForm}>
             <Text style={[styles.pendingLabel, { color: colors.mutedForeground }]}>Asset name</Text>
             <TextInput
@@ -182,7 +217,15 @@ export default function AssetsScreen() {
               onPress={() => copyToken(asset)}
               activeOpacity={0.85}
             >
-              <Image source={{ uri: asset.uri }} contentFit="cover" style={styles.assetThumbFull} />
+              <View style={styles.assetThumbFull}>
+                <CheckerBg style={{}} />
+                <Image
+                  source={{ uri: asset.uri }}
+                  contentFit="contain"
+                  backgroundColor="transparent"
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
               <View style={[styles.assetRowFooter, { borderTopWidth: 1, borderTopColor: colors.border }]}>
                 <View style={styles.assetInfo}>
                   <Text style={[styles.assetName, { color: colors.foreground }]}>{asset.name}</Text>
@@ -232,7 +275,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 16,
   },
-  pendingPreview: { width: "100%", height: 160 },
+  pendingPreview: { width: "100%", height: 160, overflow: "hidden" },
   pendingForm: { padding: 14, gap: 8 },
   pendingLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
   pendingInput: {
@@ -266,7 +309,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: "hidden",
   },
-  assetThumbFull: { width: "100%", height: 110 },
+  assetThumbFull: { width: "100%", height: 110, overflow: "hidden" },
   assetRowFooter: {
     flexDirection: "row",
     alignItems: "center",

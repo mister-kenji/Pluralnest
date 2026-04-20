@@ -83,7 +83,8 @@ export default function JournalEntryScreen() {
         <Image
           key={node.key}
           source={{ uri: node.attributes.src }}
-          contentFit={sizeMatch ? "contain" : "cover"}
+          contentFit="contain"
+          backgroundColor="transparent"
           style={{ width: imgW, height: imgH, borderRadius: 8, marginVertical: 6 }}
         />
       );
