@@ -29,6 +29,7 @@ export default function MembersScreen() {
   const insets = useSafeAreaInsets();
   const { data, updateMembers, updateGroups } = useStorage();
   const [search, setSearch] = useState("");
+  const [sortAZ, setSortAZ] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newName, setNewName] = useState("");
@@ -195,7 +196,17 @@ export default function MembersScreen() {
     );
   };
 
-  const listData: (Group | Member)[] = [...rootGroups, ...ungroupedMembers];
+  const sortedGroups = useMemo(
+    () => sortAZ ? [...rootGroups].sort((a, b) => a.name.localeCompare(b.name)) : rootGroups,
+    [rootGroups, sortAZ],
+  );
+
+  const sortedUngrouped = useMemo(
+    () => sortAZ ? [...ungroupedMembers].sort((a, b) => a.name.localeCompare(b.name)) : ungroupedMembers,
+    [ungroupedMembers, sortAZ],
+  );
+
+  const listData: (Group | Member)[] = [...sortedGroups, ...sortedUngrouped];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -212,6 +223,17 @@ export default function MembersScreen() {
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: colors.foreground }]}>Members</Text>
           <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.sortBtn, { backgroundColor: sortAZ ? colors.primary : colors.secondary }]}
+              onPress={() => {
+                setSortAZ((v) => !v);
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+              }}
+            >
+              <Text style={[styles.sortBtnText, { color: sortAZ ? colors.primaryForeground : colors.mutedForeground }]}>
+                A–Z
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.iconBtn, { backgroundColor: colors.secondary }]}
               onPress={() => {
@@ -358,8 +380,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
-  actions: { flexDirection: "row", gap: 8 },
+  actions: { flexDirection: "row", gap: 8, alignItems: "center" },
   iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  sortBtn: { height: 36, paddingHorizontal: 11, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  sortBtnText: { fontSize: 13, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
