@@ -46,7 +46,8 @@ export default function SystemProfileScreen() {
   const pickBanner = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
     if (!result.canceled && result.assets[0]) {
-      const uri = await persistImage(result.assets[0].uri);
+      const a = result.assets[0];
+      const uri = await persistImage(a.uri, a.mimeType ?? undefined);
       updateSystemProfile({ ...profile, description, bannerImage: uri });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -60,7 +61,8 @@ export default function SystemProfileScreen() {
   const pickProfileImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
     if (!result.canceled && result.assets[0]) {
-      const uri = await persistImage(result.assets[0].uri);
+      const a = result.assets[0];
+      const uri = await persistImage(a.uri, a.mimeType ?? undefined);
       updateSystemProfile({ ...profile, description, profileImage: uri });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }

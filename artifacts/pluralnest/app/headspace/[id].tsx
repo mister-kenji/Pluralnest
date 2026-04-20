@@ -70,7 +70,10 @@ export default function HeadspaceDetailScreen() {
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-    if (!result.canceled && result.assets[0]) setNewImage(await persistImage(result.assets[0].uri));
+    if (!result.canceled && result.assets[0]) {
+      const a = result.assets[0];
+      setNewImage(await persistImage(a.uri, a.mimeType ?? undefined));
+    }
   };
 
   const addChild = () => {

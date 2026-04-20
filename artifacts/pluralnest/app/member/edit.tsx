@@ -106,7 +106,8 @@ export default function EditMemberScreen() {
       quality: 0.9,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfileImage(await persistImage(result.assets[0].uri));
+      const a = result.assets[0];
+      setProfileImage(await persistImage(a.uri, a.mimeType ?? undefined));
     }
   };
 
@@ -118,7 +119,8 @@ export default function EditMemberScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setBannerImage(await persistImage(result.assets[0].uri));
+      const a = result.assets[0];
+      setBannerImage(await persistImage(a.uri, a.mimeType ?? undefined));
     }
   };
 

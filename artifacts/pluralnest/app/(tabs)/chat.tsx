@@ -137,7 +137,8 @@ export default function ChatScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0] && selectedMemberId) {
-      const uri = await persistImage(result.assets[0].uri);
+      const a = result.assets[0];
+      const uri = await persistImage(a.uri, a.mimeType ?? undefined);
       const msg: ChatMessage = {
         id: genId(),
         memberId: selectedMemberId,

@@ -70,7 +70,7 @@ export default function AssetsScreen() {
       quality: 0.85,
     });
     if (!result.canceled && result.assets[0]) {
-      setPendingUri(await persistImage(result.assets[0].uri));
+      setPendingUri(await persistImage(result.assets[0].uri, result.assets[0].mimeType ?? undefined));
       setPendingName("");
       setNameError("");
     }

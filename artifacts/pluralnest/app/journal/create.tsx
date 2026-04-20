@@ -47,7 +47,8 @@ export default function CreateJournalScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setCoverImage(await persistImage(result.assets[0].uri));
+      const a = result.assets[0];
+      setCoverImage(await persistImage(a.uri, a.mimeType ?? undefined));
     }
   };
 
