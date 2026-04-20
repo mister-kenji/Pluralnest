@@ -378,22 +378,30 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
             headspaceBoardMemberIds: (parsed as any).headspaceBoardMemberIds ?? [],
             memberBoardPositions: (parsed as any).memberBoardPositions ?? {},
             chatChannels: migratedChannels,
-            settings: {
-              ...defaultSettings,
-              ...savedSettings,
-              featuresEnabled: {
-                ...defaultSettings.featuresEnabled,
-                ...savedFeaturesEnabled,
-              },
-              lockedSections: {
-                ...defaultLockedSections,
-                ...((savedSettings as Partial<AppSettings>).lockedSections ?? {}),
-              },
-              lockOnStartup: (savedSettings as Partial<AppSettings>).lockOnStartup ?? true,
-              hasCompletedOnboarding:
-                (savedSettings as Partial<AppSettings>).hasCompletedOnboarding ??
-                hasExistingData,
-            },
+            settings: (() => {
+              const merged: AppSettings = {
+                ...defaultSettings,
+                ...savedSettings,
+                featuresEnabled: {
+                  ...defaultSettings.featuresEnabled,
+                  ...savedFeaturesEnabled,
+                },
+                lockedSections: {
+                  ...defaultLockedSections,
+                  ...((savedSettings as Partial<AppSettings>).lockedSections ?? {}),
+                },
+                lockOnStartup: (savedSettings as Partial<AppSettings>).lockOnStartup ?? true,
+                hasCompletedOnboarding:
+                  (savedSettings as Partial<AppSettings>).hasCompletedOnboarding ??
+                  hasExistingData,
+              };
+              // Clear any partial/incomplete PIN (< 4 digits) — safety migration
+              if (merged.screenLockCode.length > 0 && merged.screenLockCode.length < 4) {
+                merged.screenLockCode = "";
+                merged.screenLockEnabled = false;
+              }
+              return merged;
+            })(),
           });
         } catch {
           // corrupt data, use defaults

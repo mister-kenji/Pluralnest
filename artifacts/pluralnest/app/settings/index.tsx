@@ -48,8 +48,11 @@ export default function SettingsScreen() {
   const [showVerifyPin, setShowVerifyPin] = useState(false);
   // Queued action after PIN verification
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  // Local PIN input — never written to settings until the user confirms
+  const [newPinInput, setNewPinInput] = useState("");
 
-  const hasPinConfigured = settings.screenLockEnabled && settings.screenLockCode.length > 0;
+  // A PIN is "configured" only when there is a saved complete code
+  const hasPinConfigured = settings.screenLockEnabled && settings.screenLockCode.length >= 4;
 
   /** Gate any sensitive security change behind the current PIN. */
   function requireSecurityPin(action: () => void) {
@@ -168,31 +171,53 @@ export default function SettingsScreen() {
 
           {settings.screenLockEnabled && (
             <View style={[styles.subSection, { borderTopColor: colors.border }]}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>PIN Code</Text>
-              <TextInput
-                style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
-                value={settings.screenLockCode}
-                onChangeText={(v) => {
-                  if (hasPinConfigured && !securityUnlocked) {
-                    requireSecurityPin(() =>
-                      updateSettings({ ...settings, screenLockCode: v }),
-                    );
-                    return;
-                  }
-                  updateSettings({ ...settings, screenLockCode: v });
-                }}
-                placeholder="4-digit PIN"
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="numeric"
-                maxLength={4}
-                secureTextEntry
-              />
-              <TouchableOpacity
-                style={[styles.lockNowBtn, { backgroundColor: colors.primary }]}
-                onPress={() => { lockApp(); router.back(); }}
-              >
-                <Text style={[styles.lockNowText, { color: colors.primaryForeground }]}>Lock Now</Text>
-              </TouchableOpacity>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                {hasPinConfigured ? "Change PIN" : "Set PIN"}
+              </Text>
+              {hasPinConfigured && (
+                <Text style={[styles.pinHint, { color: colors.mutedForeground }]}>
+                  Current PIN: {"●".repeat(settings.screenLockCode.length)} — enter new PIN below to change
+                </Text>
+              )}
+              <View style={styles.pinRow}>
+                <TextInput
+                  style={[styles.input, styles.pinInput, { color: colors.foreground, borderColor: newPinInput.length === 4 ? colors.primary : colors.border, backgroundColor: colors.secondary }]}
+                  value={newPinInput}
+                  onChangeText={setNewPinInput}
+                  placeholder="4 digits"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="numeric"
+                  maxLength={4}
+                  secureTextEntry
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.setPinBtn,
+                    { backgroundColor: newPinInput.length === 4 ? colors.primary : colors.secondary, borderColor: colors.border },
+                  ]}
+                  disabled={newPinInput.length !== 4}
+                  onPress={() => {
+                    const code = newPinInput;
+                    requireSecurityPin(() => {
+                      updateSettings({ ...settings, screenLockCode: code });
+                      setNewPinInput("");
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    });
+                  }}
+                >
+                  <Text style={[styles.setPinBtnText, { color: newPinInput.length === 4 ? colors.primaryForeground : colors.mutedForeground }]}>
+                    Set
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {hasPinConfigured && (
+                <TouchableOpacity
+                  style={[styles.lockNowBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => { lockApp(); router.back(); }}
+                >
+                  <Text style={[styles.lockNowText, { color: colors.primaryForeground }]}>Lock Now</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -383,6 +408,11 @@ const styles = StyleSheet.create({
   sectionLockHint: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 4 },
   unlockBadge: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: "auto" },
   unlockBadgeText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  pinHint: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 4 },
+  pinRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  pinInput: { flex: 1 },
+  setPinBtn: { borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  setPinBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   lockNowBtn: { borderRadius: 10, paddingVertical: 10, alignItems: "center", marginTop: 8 },
   lockNowText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   actionRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, padding: 16 },
