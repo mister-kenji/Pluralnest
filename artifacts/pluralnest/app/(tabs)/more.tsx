@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { BackHandler, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useStorage } from "@/context/StorageContext";
@@ -39,10 +39,20 @@ const menuGroups: { title: string; items: MenuItem[] }[] = [
   },
 ];
 
+function closeApp() {
+  if (Platform.OS === "android") {
+    BackHandler.exitApp();
+  } else {
+    // iOS: no official API — terminates the JS runtime
+    try { (globalThis as any).process?.exit?.(0); } catch {}
+  }
+}
+
 export default function MoreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { data } = useStorage();
+  const panicEnabled = data.settings.panicCloseEnabled;
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomClearance = useBottomTabClearance(16);
@@ -68,45 +78,68 @@ export default function MoreScreen() {
                 if (!item.featureKey) return true;
                 return data.settings.featuresEnabled[item.featureKey];
               })
-              .map((item, idx, arr) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[
-                    styles.menuItem,
-                    idx < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (item.route) router.push(item.route as any);
-                  }}
-                >
-                  <View
+              .map((item, idx, arr) => {
+                const isLast = idx === arr.length - 1 && !(group.title === "System" && panicEnabled);
+                return (
+                  <TouchableOpacity
+                    key={item.label}
                     style={[
-                      styles.iconWrap,
-                      { backgroundColor: (item.color ?? colors.primary) + "1a" },
+                      styles.menuItem,
+                      !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border },
                     ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (item.route) router.push(item.route as any);
+                    }}
                   >
-                    <Feather
-                      name={item.icon}
-                      size={18}
-                      color={item.color ?? colors.primary}
-                    />
-                  </View>
-                  <View style={styles.menuText}>
-                    <Text
-                      style={[styles.menuLabel, { color: item.color ?? colors.foreground }]}
+                    <View
+                      style={[
+                        styles.iconWrap,
+                        { backgroundColor: (item.color ?? colors.primary) + "1a" },
+                      ]}
                     >
-                      {item.label}
-                    </Text>
-                    {item.sublabel && (
-                      <Text style={[styles.menuSublabel, { color: colors.mutedForeground }]}>
-                        {item.sublabel}
+                      <Feather
+                        name={item.icon}
+                        size={18}
+                        color={item.color ?? colors.primary}
+                      />
+                    </View>
+                    <View style={styles.menuText}>
+                      <Text
+                        style={[styles.menuLabel, { color: item.color ?? colors.foreground }]}
+                      >
+                        {item.label}
                       </Text>
-                    )}
-                  </View>
-                  <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              ))}
+                      {item.sublabel && (
+                        <Text style={[styles.menuSublabel, { color: colors.mutedForeground }]}>
+                          {item.sublabel}
+                        </Text>
+                      )}
+                    </View>
+                    <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                );
+              })}
+
+            {group.title === "System" && panicEnabled && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                  closeApp();
+                }}
+              >
+                <View style={[styles.iconWrap, { backgroundColor: colors.primary + "1a" }]}>
+                  <Feather name="book-open" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.menuText}>
+                  <Text style={[styles.menuLabel, { color: colors.foreground }]}>
+                    Markdown Guide
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       ))}

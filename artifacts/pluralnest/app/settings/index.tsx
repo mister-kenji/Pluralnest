@@ -145,7 +145,7 @@ export default function SettingsScreen() {
         <View style={[styles.switchRow, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}>
           <View style={styles.switchLabel}>
             <Feather name="zap" size={16} color={colors.foreground} />
-            <Text style={[styles.switchText, { color: colors.foreground }]}>Panic Close (double-tap)</Text>
+            <Text style={[styles.switchText, { color: colors.foreground }]}>Panic Close (hidden button in More)</Text>
           </View>
           <Switch
             value={settings.panicCloseEnabled}
