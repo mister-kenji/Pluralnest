@@ -99,14 +99,18 @@ export function HeadspaceBoard() {
             (l.fromNodeId === toId && l.toNodeId === fromId),
         );
         if (existing) {
+          // Toggle off: remove the link and clear selection
           updateHeadspaceBoardLinks(boardLinksRef.current.filter((l) => l.id !== existing.id));
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setConnectFrom(null);
         } else {
+          // New link created: keep the second node selected as the next source
+          // so the user gets clear feedback the link landed and can chain another
           const link: BoardLink = { id: genId(), fromNodeId: fromId, toNodeId: toId };
           updateHeadspaceBoardLinks([...boardLinksRef.current, link]);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setConnectFrom(toId);
         }
-        setConnectFrom(null);
       }
     } else {
       setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
