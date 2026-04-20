@@ -16,6 +16,7 @@ import {
 import Svg, { Line } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Image } from "expo-image";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { BoardLink, HeadspaceNode, useStorage } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
@@ -341,10 +342,12 @@ export function HeadspaceBoard() {
               },
             ];
 
+            const hasImage = !!node.imageUri;
+
             const nodeInner = (
               <>
                 <View style={[styles.nodeAccent, { backgroundColor: meta.color }]} />
-                <View style={styles.nodeBody}>
+                <View style={[styles.nodeBody, hasImage && styles.nodeBodyNarrow]}>
                   <View style={styles.nodeHeader}>
                     <Feather name={meta.icon as any} size={10} color={meta.color} />
                     <Text style={[styles.nodeType, { color: meta.color }]}>{meta.label}</Text>
@@ -352,7 +355,7 @@ export function HeadspaceBoard() {
                   <Text style={[styles.nodeTitle, { color: colors.foreground }]} numberOfLines={2}>
                     {node.title}
                   </Text>
-                  {linkedMembers.length > 0 && (
+                  {linkedMembers.length > 0 && !hasImage && (
                     <View style={styles.nodeAvatars}>
                       {linkedMembers.slice(0, 4).map((m) => (
                         <MemberAvatar
@@ -366,6 +369,13 @@ export function HeadspaceBoard() {
                     </View>
                   )}
                 </View>
+                {hasImage && (
+                  <Image
+                    source={{ uri: node.imageUri }}
+                    style={styles.nodeImageCol}
+                    contentFit="cover"
+                  />
+                )}
               </>
             );
 
@@ -635,6 +645,8 @@ const styles = StyleSheet.create({
   },
   nodeAccent: { width: 4 },
   nodeBody: { flex: 1, padding: 10, justifyContent: "center", gap: 4 },
+  nodeBodyNarrow: { paddingRight: 6 },
+  nodeImageCol: { width: 62, alignSelf: "stretch" },
   nodeHeader: { flexDirection: "row", alignItems: "center", gap: 4 },
   nodeType: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   nodeTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 17 },
