@@ -196,7 +196,7 @@ export default function EditMemberScreen() {
       updateMembers(data.members.filter((m) => m.id !== existingMember.id));
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    router.back();
+    router.replace("/(tabs)/members");
   };
 
   const otherMembers = data.members.filter(

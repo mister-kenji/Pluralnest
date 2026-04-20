@@ -6,7 +6,6 @@ import React, { useState } from "react";
 import {
   Platform,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -77,11 +76,21 @@ export default function ExportScreen() {
       await FileSystem.writeAsStringAsync(path, json, {
         encoding: FileSystem.EncodingType.UTF8,
       });
-      await Share.share({ url: `file://${path}`, title: "PluralNest Backup" });
-      flash(setExportStatus, { type: "success", msg: "Backup ready to share!" });
+      const Sharing = await import("expo-sharing");
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(path, {
+          mimeType: "application/json",
+          dialogTitle: "Save PluralNest Backup",
+          UTI: "public.json",
+        });
+        flash(setExportStatus, { type: "success", msg: "Backup ready to share!" });
+      } else {
+        flash(setExportStatus, { type: "error", msg: "Sharing is not available on this device." });
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("cancel") || msg.toLowerCase().includes("cancel")) {
+      if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("dismiss")) {
         return;
       }
       flash(setExportStatus, { type: "error", msg: "Export failed. Try again." });
