@@ -140,13 +140,22 @@ export function HeadspaceBoard() {
       // In connect mode let TouchableOpacity nodes handle taps; only claim
       // the responder from the start in pan mode (for drag/tap detection).
       onStartShouldSetPanResponder: () => modeRef.current === "pan",
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
+      // In connect mode only claim for real drags (>8px) so TouchableOpacity
+      // nodes can fire their onPress on normal taps.
+      onMoveShouldSetPanResponder: (_, gs) =>
+        modeRef.current === "pan" ||
+        Math.abs(gs.dx) > 8 ||
+        Math.abs(gs.dy) > 8,
+      onPanResponderGrant: (evt, gs) => {
         // In connect mode we never drag nodes — always treat as canvas pan.
+        // Subtract gs.dx/dy already accumulated before grant so there's no jump.
         if (modeRef.current === "connect") {
           dragState.current = {
             type: "canvas",
-            startVal: { ...canvasOffsetRef.current },
+            startVal: {
+              x: canvasOffsetRef.current.x - gs.dx,
+              y: canvasOffsetRef.current.y - gs.dy,
+            },
             moved: false,
           };
           return;
