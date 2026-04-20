@@ -137,9 +137,21 @@ export function HeadspaceBoard() {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      // In connect mode let TouchableOpacity nodes handle taps; only claim
+      // the responder from the start in pan mode (for drag/tap detection).
+      onStartShouldSetPanResponder: () => modeRef.current === "pan",
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
+        // In connect mode we never drag nodes — always treat as canvas pan.
+        if (modeRef.current === "connect") {
+          dragState.current = {
+            type: "canvas",
+            startVal: { ...canvasOffsetRef.current },
+            moved: false,
+          };
+          return;
+        }
+
         const { locationX, locationY } = evt.nativeEvent;
         const cx = locationX - canvasOffsetRef.current.x;
         const cy = locationY - canvasOffsetRef.current.y;
@@ -299,39 +311,36 @@ export function HeadspaceBoard() {
             const linkedMembers = (node.connectedMemberIds ?? [])
               .map((mid) => data.members.find((m) => m.id === mid))
               .filter(Boolean) as typeof data.members;
-            return (
-              <View
-                key={node.id}
-                style={[
-                  styles.node,
-                  {
-                    left: pos.x,
-                    top: pos.y,
-                    backgroundColor: colors.card,
-                    borderColor: isConnectSrc
-                      ? meta.color
-                      : isSelected
-                      ? colors.primary
-                      : colors.border,
-                    borderWidth: isSelected || isConnectSrc ? 2 : 1,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isSelected || isConnectSrc ? 0.25 : 0.08,
-                    shadowRadius: 4,
-                    elevation: isSelected || isConnectSrc ? 6 : 2,
-                  },
-                ]}
-              >
+
+            const nodeStyle = [
+              styles.node,
+              {
+                left: pos.x,
+                top: pos.y,
+                backgroundColor: colors.card,
+                borderColor: isConnectSrc
+                  ? meta.color
+                  : isSelected
+                  ? colors.primary
+                  : colors.border,
+                borderWidth: isSelected || isConnectSrc ? 2 : 1,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isSelected || isConnectSrc ? 0.25 : 0.08,
+                shadowRadius: 4,
+                elevation: isSelected || isConnectSrc ? 6 : 2,
+              },
+            ];
+
+            const nodeInner = (
+              <>
                 <View style={[styles.nodeAccent, { backgroundColor: meta.color }]} />
                 <View style={styles.nodeBody}>
                   <View style={styles.nodeHeader}>
                     <Feather name={meta.icon as any} size={10} color={meta.color} />
                     <Text style={[styles.nodeType, { color: meta.color }]}>{meta.label}</Text>
                   </View>
-                  <Text
-                    style={[styles.nodeTitle, { color: colors.foreground }]}
-                    numberOfLines={2}
-                  >
+                  <Text style={[styles.nodeTitle, { color: colors.foreground }]} numberOfLines={2}>
                     {node.title}
                   </Text>
                   {linkedMembers.length > 0 && (
@@ -348,6 +357,27 @@ export function HeadspaceBoard() {
                     </View>
                   )}
                 </View>
+              </>
+            );
+
+            // In connect mode use TouchableOpacity so taps are reliable
+            // (avoids PanResponder coordinate math issues on transformed views)
+            if (mode === "connect") {
+              return (
+                <TouchableOpacity
+                  key={node.id}
+                  style={nodeStyle}
+                  activeOpacity={0.7}
+                  onPress={() => handleNodeTapRef.current(node.id)}
+                >
+                  {nodeInner}
+                </TouchableOpacity>
+              );
+            }
+
+            return (
+              <View key={node.id} style={nodeStyle}>
+                {nodeInner}
               </View>
             );
           })}
