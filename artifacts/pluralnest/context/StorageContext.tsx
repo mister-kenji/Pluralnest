@@ -78,6 +78,7 @@ export type JournalEntry = {
   updatedAt: number;
   isLocked: boolean;
   lockCode?: string;
+  isPinned: boolean;
 };
 
 export type ChatChannel = {
@@ -334,6 +335,10 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           setData({
             ...defaultData,
             ...parsed,
+            journalEntries: (parsed.journalEntries ?? []).map((e: any) => ({
+              ...e,
+              isPinned: e.isPinned ?? false,
+            })),
             forumPosts: (parsed.forumPosts ?? []).map((p: any) => ({
               ...p,
               reactions: p.reactions ?? [],
@@ -447,6 +452,10 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
         const next: AppData = {
           ...defaultData,
           ...parsed,
+          journalEntries: (parsed.journalEntries ?? []).map((e: any) => ({
+            ...e,
+            isPinned: e.isPinned ?? false,
+          })),
           forumPosts: (parsed.forumPosts ?? []).map((p: any) => ({
             ...p,
             reactions: p.reactions ?? [],

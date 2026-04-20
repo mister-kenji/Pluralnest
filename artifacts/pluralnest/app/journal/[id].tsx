@@ -155,6 +155,16 @@ export default function JournalEntryScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const togglePin = () => {
+    if (!entry) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    updateJournalEntries(
+      data.journalEntries.map((e) =>
+        e.id === id ? { ...e, isPinned: !e.isPinned } : e,
+      ),
+    );
+  };
+
   const deleteEntry = () => setConfirmDelete(true);
 
   const doDelete = () => {
@@ -244,6 +254,16 @@ export default function JournalEntryScreen() {
                 <>
                   <TouchableOpacity
                     style={[styles.overlayBtn, { backgroundColor: colors.card + "cc" }]}
+                    onPress={togglePin}
+                  >
+                    <Feather
+                      name="bookmark"
+                      size={16}
+                      color={entry.isPinned ? colors.primary : colors.foreground}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.overlayBtn, { backgroundColor: colors.card + "cc" }]}
                     onPress={() => setIsEditing(true)}
                   >
                     <Feather name="edit-2" size={16} color={colors.foreground} />
@@ -285,6 +305,13 @@ export default function JournalEntryScreen() {
                 </>
               ) : (
                 <>
+                  <TouchableOpacity onPress={togglePin}>
+                    <Feather
+                      name="bookmark"
+                      size={20}
+                      color={entry.isPinned ? colors.primary : colors.foreground}
+                    />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => setIsEditing(true)}>
                     <Feather name="edit-2" size={20} color={colors.foreground} />
                   </TouchableOpacity>

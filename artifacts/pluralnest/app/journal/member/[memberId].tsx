@@ -24,7 +24,7 @@ export default function MemberJournalScreen() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { data } = useStorage();
+  const { data, updateJournalEntries } = useStorage();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -37,11 +37,24 @@ export default function MemberJournalScreen() {
     () =>
       data.journalEntries
         .filter((e) => e.memberId === memberId)
-        .sort((a, b) => b.updatedAt - a.updatedAt),
+        .sort((a, b) => {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          return b.updatedAt - a.updatedAt;
+        }),
     [data.journalEntries, memberId],
   );
 
   const getTag = (id: string) => data.journalTags.find((t) => t.id === id);
+
+  const togglePin = (entryId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    updateJournalEntries(
+      data.journalEntries.map((e) =>
+        e.id === entryId ? { ...e, isPinned: !e.isPinned } : e,
+      ),
+    );
+  };
 
   if (!member) {
     return (
@@ -50,6 +63,8 @@ export default function MemberJournalScreen() {
       </View>
     );
   }
+
+  const pinnedCount = entries.filter((e) => e.isPinned).length;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -91,6 +106,7 @@ export default function MemberJournalScreen() {
 
         <Text style={[styles.entryCount, { color: colors.mutedForeground }]}>
           {entries.length} {entries.length === 1 ? "entry" : "entries"}
+          {pinnedCount > 0 && `  ·  ${pinnedCount} pinned`}
         </Text>
       </View>
 
@@ -117,11 +133,19 @@ export default function MemberJournalScreen() {
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.card,
+                borderColor: item.isPinned ? colors.primary + "60" : colors.border,
+              },
+            ]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push(`/journal/${item.id}`);
             }}
+            onLongPress={() => togglePin(item.id)}
+            delayLongPress={400}
           >
             {item.coverImage && (
               <Image
@@ -138,9 +162,14 @@ export default function MemberJournalScreen() {
                 >
                   {item.title || "Untitled"}
                 </Text>
-                {item.isLocked && (
-                  <Feather name="lock" size={14} color={colors.mutedForeground} />
-                )}
+                <View style={styles.cardIcons}>
+                  {item.isPinned && (
+                    <Feather name="bookmark" size={14} color={colors.primary} />
+                  )}
+                  {item.isLocked && (
+                    <Feather name="lock" size={14} color={colors.mutedForeground} />
+                  )}
+                </View>
               </View>
               <Text
                 style={[styles.cardPreview, { color: colors.mutedForeground }]}
@@ -215,6 +244,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardTitle: { flex: 1, fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  cardIcons: { flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 2 },
   cardPreview: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
