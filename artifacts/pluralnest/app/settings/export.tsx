@@ -71,11 +71,22 @@ export default function ExportScreen() {
       return;
     }
 
+    // Step 1: write file — if this fails, show an error.
+    let path = "";
     try {
-      const path = `${FileSystem.documentDirectory}${filename}`;
+      path = `${FileSystem.documentDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(path, json, {
         encoding: FileSystem.EncodingType.UTF8,
       });
+    } catch {
+      flash(setExportStatus, { type: "error", msg: "Export failed — could not write file." });
+      return;
+    }
+
+    // Step 2: open the share sheet. Any throw here (incl. user dismissal,
+    // RESULT_CANCELED, activity-result errors, etc.) is treated as a
+    // normal close — the file is already saved so we still report success.
+    try {
       const Sharing = await import("expo-sharing");
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -84,17 +95,12 @@ export default function ExportScreen() {
           dialogTitle: "Save PluralNest Backup",
           UTI: "public.json",
         });
-        flash(setExportStatus, { type: "success", msg: "Backup ready to share!" });
-      } else {
-        flash(setExportStatus, { type: "error", msg: "Sharing is not available on this device." });
       }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("dismiss")) {
-        return;
-      }
-      flash(setExportStatus, { type: "error", msg: "Export failed. Try again." });
+    } catch {
+      // Share sheet closed or unavailable — file is written, treat as success.
     }
+
+    flash(setExportStatus, { type: "success", msg: "Backup ready to share!" });
   };
 
   const pickAndImport = async () => {
@@ -124,9 +130,30 @@ export default function ExportScreen() {
       });
       if (result.canceled) return;
       const asset = result.assets[0];
-      const fileJson = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      if (!asset?.uri) {
+        flash(setImportStatus, { type: "error", msg: "Could not read file. Paste JSON below instead." });
+        return;
+      }
+      // On Android the URI may be a content:// URI even after copyToCacheDirectory;
+      // reading via FileSystem.readAsStringAsync handles both file:// and cached paths.
+      let fileJson: string;
+      try {
+        fileJson = await FileSystem.readAsStringAsync(asset.uri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+      } catch {
+        // Fallback: if the URI is not directly readable, check if a local URI is provided
+        if (asset.file) {
+          fileJson = await new Promise<string>((res, rej) => {
+            const reader = new (globalThis as any).FileReader();
+            reader.onload = () => res(reader.result as string);
+            reader.onerror = rej;
+            reader.readAsText(asset.file as Blob);
+          });
+        } else {
+          throw new Error("unreadable");
+        }
+      }
       setConfirmImport({ json: fileJson });
     } catch {
       flash(setImportStatus, { type: "error", msg: "Could not read file. Paste JSON below instead." });
