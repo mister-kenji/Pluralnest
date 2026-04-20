@@ -64,9 +64,31 @@ export default function ExportScreen() {
     );
   };
 
-  const runImport = (json: string) => {
-    const ok = importData(json);
-    if (ok) {
+  const runImport = (rawJson: string) => {
+    // Strip UTF-8 BOM (U+FEFF) and any leading/trailing whitespace
+    const json = rawJson.replace(/^\uFEFF/, "").trim();
+
+    // Pre-validate JSON so we can surface the real error message
+    let parsed: any;
+    try {
+      parsed = JSON.parse(json);
+    } catch (e: any) {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
+      Alert.alert(
+        "Invalid JSON",
+        `The text isn't valid JSON and can't be imported.\n\nParser said: ${e?.message ?? "unknown error"}\n\nMake sure you copied the full backup without any extra characters.`
+      );
+      return;
+    }
+
+    // Must be a plain object (backups are always {…})
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      Alert.alert("Wrong Format", "This doesn't look like a PluralNest backup. The backup should be a JSON object starting with {.");
+      return;
+    }
+
+    const err = importData(json);
+    if (err === null) {
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
       Alert.alert("Imported!", "Your data has been restored successfully.");
       setPasteJson("");
@@ -75,7 +97,7 @@ export default function ExportScreen() {
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
       Alert.alert(
         "Import Failed",
-        "The file doesn't look like a valid PluralNest backup. Make sure you're using a backup exported from this app."
+        `The JSON was valid but something went wrong applying it.\n\nError: ${err}\n\nTry re-exporting from the original device.`
       );
     }
   };

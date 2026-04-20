@@ -319,7 +319,7 @@ type StorageContextType = {
   restoreDeleted: (id: string) => DeletedItem | undefined;
   purgeOldDeleted: () => void;
   exportData: () => string;
-  importData: (json: string) => boolean;
+  importData: (json: string) => string | null; // null = success, string = error message
 };
 
 const StorageContext = createContext<StorageContextType | null>(null);
@@ -471,7 +471,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   const exportData = useCallback(() => JSON.stringify(data, null, 2), [data]);
 
   const importData = useCallback(
-    (json: string): boolean => {
+    (json: string): string | null => {
       try {
         const parsed = JSON.parse(json) as Partial<AppData>;
         const savedSettings = parsed.settings ?? {};
@@ -479,34 +479,34 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
         const next: AppData = {
           ...defaultData,
           ...parsed,
-          journalEntries: (parsed.journalEntries ?? []).map((e: any) => ({
+          journalEntries: (Array.isArray(parsed.journalEntries) ? parsed.journalEntries : []).map((e: any) => ({
             ...e,
             isPinned: e.isPinned ?? false,
           })),
-          forumPosts: (parsed.forumPosts ?? []).map((p: any) => ({
+          forumPosts: (Array.isArray(parsed.forumPosts) ? parsed.forumPosts : []).map((p: any) => ({
             ...p,
             reactions: p.reactions ?? [],
-            replies: (p.replies ?? []).map((r: any) => ({
+            replies: (Array.isArray(p.replies) ? p.replies : []).map((r: any) => ({
               ...r,
               reactions: r.reactions ?? [],
             })),
           })),
-          chatMessages: (parsed.chatMessages ?? []).map((m: any) => ({
+          chatMessages: (Array.isArray(parsed.chatMessages) ? parsed.chatMessages : []).map((m: any) => ({
             ...m,
             reactions: m.reactions ?? [],
           })),
-          groups: parsed.groups ?? [],
-          assets: parsed.assets ?? [],
-          deletedItems: parsed.deletedItems ?? [],
-          headspaceNodes: parsed.headspaceNodes ?? [],
-          headspaceBoardNodeIds: parsed.headspaceBoardNodeIds ?? [],
-          headspaceBoardLinks: (parsed.headspaceBoardLinks ?? []).map((l: any) => ({
+          groups: Array.isArray(parsed.groups) ? parsed.groups : [],
+          assets: Array.isArray(parsed.assets) ? parsed.assets : [],
+          deletedItems: Array.isArray(parsed.deletedItems) ? parsed.deletedItems : [],
+          headspaceNodes: Array.isArray(parsed.headspaceNodes) ? parsed.headspaceNodes : [],
+          headspaceBoardNodeIds: Array.isArray(parsed.headspaceBoardNodeIds) ? parsed.headspaceBoardNodeIds : [],
+          headspaceBoardLinks: (Array.isArray(parsed.headspaceBoardLinks) ? parsed.headspaceBoardLinks : []).map((l: any) => ({
             id: l.id,
             fromId: l.fromId ?? l.fromNodeId ?? "",
             toId: l.toId ?? l.toNodeId ?? "",
           })),
-          headspaceBoardMemberIds: (parsed as any).headspaceBoardMemberIds ?? [],
-          memberBoardPositions: (parsed as any).memberBoardPositions ?? {},
+          headspaceBoardMemberIds: Array.isArray((parsed as any).headspaceBoardMemberIds) ? (parsed as any).headspaceBoardMemberIds : [],
+          memberBoardPositions: (parsed as any).memberBoardPositions && typeof (parsed as any).memberBoardPositions === "object" ? (parsed as any).memberBoardPositions : {},
           settings: {
             ...defaultSettings,
             ...savedSettings,
@@ -523,9 +523,9 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
         };
         setData(next);
         save(next);
-        return true;
-      } catch {
-        return false;
+        return null;
+      } catch (e: any) {
+        return e?.message ?? "Unknown error during import";
       }
     },
     [save],
