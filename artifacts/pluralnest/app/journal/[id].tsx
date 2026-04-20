@@ -74,14 +74,20 @@ export default function JournalEntryScreen() {
     link: { color: colors.primary },
   };
   const mdRules = {
-    image: (node: any) => (
-      <Image
-        key={node.key}
-        source={{ uri: node.attributes.src }}
-        contentFit="cover"
-        style={{ width: mdImgW, height: mdImgH, borderRadius: 8, marginVertical: 6 }}
-      />
-    ),
+    image: (node: any) => {
+      const title: string = node.attributes.title ?? "";
+      const sizeMatch = title.match(/^(\d+)x(\d+)$/);
+      const imgW = sizeMatch ? parseInt(sizeMatch[1], 10) : mdImgW;
+      const imgH = sizeMatch ? parseInt(sizeMatch[2], 10) : mdImgH;
+      return (
+        <Image
+          key={node.key}
+          source={{ uri: node.attributes.src }}
+          contentFit={sizeMatch ? "contain" : "cover"}
+          style={{ width: imgW, height: imgH, borderRadius: 8, marginVertical: 6 }}
+        />
+      );
+    },
     fence: (node: any) => {
       if (node.sourceInfo === "center") {
         return (
