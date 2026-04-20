@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
 import { ConfirmSheet } from "@/components/ConfirmSheet";
+import { ReactionBar, toggleReaction } from "@/components/ReactionBar";
 import { useStorage, ForumReply, ForumPost } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
@@ -72,6 +73,7 @@ export default function ForumDetailScreen() {
       memberId: replierMemberId,
       content: replyText.trim(),
       createdAt: Date.now(),
+      reactions: [],
     };
     updateForumPosts(
       (data.forumPosts ?? []).map((p) =>
@@ -79,6 +81,35 @@ export default function ForumDetailScreen() {
       ),
     );
     setReplyText("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const togglePostReaction = (emoji: string) => {
+    updateForumPosts(
+      (data.forumPosts ?? []).map((p) =>
+        p.id !== id ? p : {
+          ...p,
+          reactions: toggleReaction(p.reactions ?? [], emoji, replierMemberId),
+        },
+      ),
+    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const toggleReplyReaction = (replyId: string, emoji: string) => {
+    updateForumPosts(
+      (data.forumPosts ?? []).map((p) =>
+        p.id !== id ? p : {
+          ...p,
+          replies: p.replies.map((r) =>
+            r.id !== replyId ? r : {
+              ...r,
+              reactions: toggleReaction(r.reactions ?? [], emoji, replierMemberId),
+            },
+          ),
+        },
+      ),
+    );
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -170,6 +201,12 @@ export default function ForumDetailScreen() {
               </View>
             )}
 
+            <ReactionBar
+              reactions={post.reactions ?? []}
+              currentMemberId={replierMemberId}
+              onToggle={togglePostReaction}
+            />
+
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <Text style={[styles.repliesLabel, { color: colors.mutedForeground }]}>
               {post.replies.length} Replies
@@ -196,6 +233,11 @@ export default function ForumDetailScreen() {
                 </View>
               )}
               <Text style={[styles.replyContent, { color: colors.foreground }]}>{reply.content}</Text>
+              <ReactionBar
+                reactions={reply.reactions ?? []}
+                currentMemberId={replierMemberId}
+                onToggle={(emoji) => toggleReplyReaction(reply.id, emoji)}
+              />
             </View>
           );
         }}

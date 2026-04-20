@@ -134,6 +134,7 @@ export type ForumPost = {
   tags: string[];
   createdAt: number;
   updatedAt: number;
+  reactions: { emoji: string; memberIds: string[] }[];
 };
 
 export type ForumReply = {
@@ -141,6 +142,7 @@ export type ForumReply = {
   memberId: string;
   content: string;
   createdAt: number;
+  reactions: { emoji: string; memberIds: string[] }[];
 };
 
 export type Asset = {
@@ -307,7 +309,18 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           setData({
             ...defaultData,
             ...parsed,
-            forumPosts: parsed.forumPosts ?? [],
+            forumPosts: (parsed.forumPosts ?? []).map((p: any) => ({
+              ...p,
+              reactions: p.reactions ?? [],
+              replies: (p.replies ?? []).map((r: any) => ({
+                ...r,
+                reactions: r.reactions ?? [],
+              })),
+            })),
+            chatMessages: (parsed.chatMessages ?? []).map((m: any) => ({
+              ...m,
+              reactions: m.reactions ?? [],
+            })),
             groups: parsed.groups ?? [],
             assets: parsed.assets ?? [],
             deletedItems: parsed.deletedItems ?? [],
@@ -409,7 +422,18 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
         const next: AppData = {
           ...defaultData,
           ...parsed,
-          forumPosts: parsed.forumPosts ?? [],
+          forumPosts: (parsed.forumPosts ?? []).map((p: any) => ({
+            ...p,
+            reactions: p.reactions ?? [],
+            replies: (p.replies ?? []).map((r: any) => ({
+              ...r,
+              reactions: r.reactions ?? [],
+            })),
+          })),
+          chatMessages: (parsed.chatMessages ?? []).map((m: any) => ({
+            ...m,
+            reactions: m.reactions ?? [],
+          })),
           groups: parsed.groups ?? [],
           assets: parsed.assets ?? [],
           deletedItems: parsed.deletedItems ?? [],

@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
+import { ReactionBar, toggleReaction } from "@/components/ReactionBar";
 import { useStorage, ChatMessage, ChatChannel, Member } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId, formatRelative } from "@/utils/helpers";
@@ -177,6 +178,18 @@ export default function ChatScreen() {
     setPendingDelete(null);
   };
 
+  const toggleMsgReaction = (msgId: string, emoji: string) => {
+    if (!selectedMemberId) return;
+    updateChatMessages(
+      data.chatMessages.map((m) =>
+        m.id === msgId
+          ? { ...m, reactions: toggleReaction(m.reactions, emoji, selectedMemberId) }
+          : m,
+      ),
+    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const getMember = (id: string): Member | undefined =>
     data.members.find((m) => m.id === id);
 
@@ -262,6 +275,12 @@ export default function ChatScreen() {
                 <Text style={[styles.pinnedText, { color: colors.primary }]}>Pinned</Text>
               </View>
             )}
+
+            <ReactionBar
+              reactions={item.reactions ?? []}
+              currentMemberId={selectedMemberId ?? ""}
+              onToggle={(emoji) => toggleMsgReaction(item.id, emoji)}
+            />
           </View>
         </View>
       </TouchableOpacity>

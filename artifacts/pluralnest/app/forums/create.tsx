@@ -50,6 +50,7 @@ export default function CreateForumScreen() {
           : undefined,
       replies: [],
       tags: [],
+      reactions: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
