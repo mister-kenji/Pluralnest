@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState } from "@/components/EmptyState";
+import { HeadspaceBoard } from "@/components/HeadspaceBoard";
 import { useStorage, HeadspaceNode } from "@/context/StorageContext";
 import { useColors } from "@/hooks/useColors";
 import { genId } from "@/utils/helpers";
@@ -33,6 +34,8 @@ export const TYPE_META: Record<NodeType, { icon: string; color: string; label: s
   text:        { icon: "align-left", color: "#ffd166", label: "Text" },
 };
 
+type View = "list" | "board";
+
 export default function HeadspaceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -43,6 +46,7 @@ export default function HeadspaceScreen() {
   const [newType, setNewType] = useState<NodeType>("place");
   const [newImage, setNewImage] = useState("");
   const [linkedMemberIds, setLinkedMemberIds] = useState<string[]>([]);
+  const [view, setView] = useState<View>("list");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const rootNodes = data.headspaceNodes.filter((n) => !n.parentId);
@@ -151,11 +155,33 @@ export default function HeadspaceScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.screenTitle, { color: colors.foreground }]}>Headspace</Text>
-        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={openAdd}>
-          <Feather name="plus" size={20} color={colors.primaryForeground} />
-        </TouchableOpacity>
+        <View style={styles.topBarRight}>
+          {/* List / Board toggle */}
+          <View style={[styles.viewToggle, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, view === "list" && { backgroundColor: colors.card }]}
+              onPress={() => { setView("list"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <Feather name="list" size={15} color={view === "list" ? colors.foreground : colors.mutedForeground} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, view === "board" && { backgroundColor: colors.card }]}
+              onPress={() => { setView("board"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <Feather name="share-2" size={15} color={view === "board" ? colors.foreground : colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+          {view === "list" && (
+            <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={openAdd}>
+              <Feather name="plus" size={20} color={colors.primaryForeground} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
+      {view === "board" ? (
+        <HeadspaceBoard />
+      ) : (
       <FlatList
         data={rootNodes}
         keyExtractor={(n) => n.id}
@@ -172,9 +198,10 @@ export default function HeadspaceScreen() {
         }
         renderItem={renderCard}
       />
+      )}
 
-      {/* ── Add Root Node Modal ── */}
-      {showAddModal && <Modal visible transparent animationType="slide">
+      {/* ── Add Root Node Modal (list view only) ── */}
+      {view === "list" && showAddModal && <Modal visible transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: "#0009" }]}>
           <ScrollView style={[styles.modal, { backgroundColor: colors.card, borderColor: colors.border }]} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
@@ -258,6 +285,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   screenTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  topBarRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  viewToggle: { flexDirection: "row", borderRadius: 10, borderWidth: 1, overflow: "hidden" },
+  viewToggleBtn: { paddingHorizontal: 10, paddingVertical: 6, alignItems: "center", justifyContent: "center" },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 
   card: { borderRadius: 14, borderWidth: 1, flexDirection: "row" },

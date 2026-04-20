@@ -117,6 +117,12 @@ export type HeadspaceNode = {
   children: string[];
 };
 
+export type BoardLink = {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+};
+
 export type ForumPost = {
   id: string;
   memberId: string;
@@ -195,6 +201,8 @@ type AppData = {
   chatChannels: ChatChannel[];
   customEmojis: CustomEmoji[];
   headspaceNodes: HeadspaceNode[];
+  headspaceBoardNodeIds: string[];
+  headspaceBoardLinks: BoardLink[];
   forumPosts: ForumPost[];
   groups: Group[];
   deletedItems: DeletedItem[];
@@ -232,6 +240,8 @@ const defaultData: AppData = {
   chatChannels: [DEFAULT_CHANNEL],
   customEmojis: [],
   headspaceNodes: [],
+  headspaceBoardNodeIds: [],
+  headspaceBoardLinks: [],
   forumPosts: [],
   groups: [],
   deletedItems: [],
@@ -250,6 +260,8 @@ type StorageContextType = {
   updateChatChannels: (channels: ChatChannel[]) => void;
   updateCustomEmojis: (emojis: CustomEmoji[]) => void;
   updateHeadspaceNodes: (nodes: HeadspaceNode[]) => void;
+  updateHeadspaceBoardNodeIds: (ids: string[]) => void;
+  updateHeadspaceBoardLinks: (links: BoardLink[]) => void;
   updateForumPosts: (posts: ForumPost[]) => void;
   updateGroups: (groups: Group[]) => void;
   updateDeletedItems: (items: DeletedItem[]) => void;
@@ -294,6 +306,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
             assets: parsed.assets ?? [],
             deletedItems: parsed.deletedItems ?? [],
             headspaceNodes: parsed.headspaceNodes ?? [],
+            headspaceBoardNodeIds: parsed.headspaceBoardNodeIds ?? [],
+            headspaceBoardLinks: parsed.headspaceBoardLinks ?? [],
             chatChannels: migratedChannels,
             settings: {
               ...defaultSettings,
@@ -388,6 +402,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           assets: parsed.assets ?? [],
           deletedItems: parsed.deletedItems ?? [],
           headspaceNodes: parsed.headspaceNodes ?? [],
+          headspaceBoardNodeIds: parsed.headspaceBoardNodeIds ?? [],
+          headspaceBoardLinks: parsed.headspaceBoardLinks ?? [],
           settings: {
             ...defaultSettings,
             ...savedSettings,
@@ -418,6 +434,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     updateChatChannels: (v) => update("chatChannels", v),
     updateCustomEmojis: (v) => update("customEmojis", v),
     updateHeadspaceNodes: (v) => update("headspaceNodes", v),
+    updateHeadspaceBoardNodeIds: (v) => update("headspaceBoardNodeIds", v),
+    updateHeadspaceBoardLinks: (v) => update("headspaceBoardLinks", v),
     updateForumPosts: (v) => update("forumPosts", v),
     updateGroups: (v) => update("groups", v),
     updateDeletedItems: (v) => update("deletedItems", v),
