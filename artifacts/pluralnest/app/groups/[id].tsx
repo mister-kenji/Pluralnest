@@ -40,6 +40,7 @@ export default function GroupDetailScreen() {
   const [newSubgroupName, setNewSubgroupName] = useState("");
   const [addingMember, setAddingMember] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [sortMembersAZ, setSortMembersAZ] = useState(false);
 
   const group = data.groups.find((g) => g.id === id);
 
@@ -52,7 +53,10 @@ export default function GroupDetailScreen() {
   }
 
   const subGroups = data.groups.filter((g) => group.subGroupIds.includes(g.id));
-  const groupMembers = data.members.filter((m) => group.memberIds.includes(m.id) && !m.isArchived);
+  const rawGroupMembers = data.members.filter((m) => group.memberIds.includes(m.id) && !m.isArchived);
+  const groupMembers = sortMembersAZ
+    ? [...rawGroupMembers].sort((a, b) => a.name.localeCompare(b.name))
+    : rawGroupMembers;
   const addableMembers = data.members.filter(
     (m) => !m.isArchived && !group.memberIds.includes(m.id),
   );
@@ -304,13 +308,26 @@ export default function GroupDetailScreen() {
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
             MEMBERS ({groupMembers.length})
           </Text>
-          <TouchableOpacity
-            style={[styles.sectionAddBtn, { backgroundColor: group.color + "22", borderColor: group.color + "55" }]}
-            onPress={() => setAddingMember((v) => !v)}
-          >
-            <Feather name="user-plus" size={14} color={group.color} />
-            <Text style={[styles.sectionAddText, { color: group.color }]}>Add</Text>
-          </TouchableOpacity>
+          <View style={styles.sectionActions}>
+            {rawGroupMembers.length > 1 && (
+              <TouchableOpacity
+                style={[styles.sortPill, { backgroundColor: sortMembersAZ ? group.color : group.color + "22", borderColor: group.color + "55" }]}
+                onPress={() => {
+                  setSortMembersAZ((v) => !v);
+                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                }}
+              >
+                <Text style={[styles.sortPillText, { color: sortMembersAZ ? "#fff" : group.color }]}>A–Z</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.sectionAddBtn, { backgroundColor: group.color + "22", borderColor: group.color + "55" }]}
+              onPress={() => setAddingMember((v) => !v)}
+            >
+              <Feather name="user-plus" size={14} color={group.color} />
+              <Text style={[styles.sectionAddText, { color: group.color }]}>Add</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {addingMember && (
@@ -421,6 +438,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
+  sectionActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  sortPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  sortPillText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8 },
   sectionAddBtn: {
     flexDirection: "row",
