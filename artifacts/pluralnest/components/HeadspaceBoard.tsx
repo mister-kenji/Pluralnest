@@ -27,6 +27,9 @@ const NODE_W = 155;
 const NODE_H = 90;
 const MEMBER_W = 110;
 const MEMBER_H = 86;
+const PHOTO_W = 210;
+const PHOTO_LABEL_H = 32;
+const MAX_PHOTO_H = 270;
 
 type Mode = "pan" | "connect";
 
@@ -69,6 +72,8 @@ export function HeadspaceBoard() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [localPos, setLocalPos] = useState<Record<string, { x: number; y: number }>>({});
+  const [imageAspectRatios, setImageAspectRatios] = useState<Record<string, number>>({});
+  const imageAspectRatiosRef = useRef<Record<string, number>>({});
 
   const canvasOffset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const canvasOffsetRef = useRef({ x: 0, y: 0 });
@@ -156,6 +161,20 @@ export function HeadspaceBoard() {
     }
   };
 
+  const getNodeDims = (node: HeadspaceNode): { w: number; h: number } => {
+    if (node.imageUri) {
+      const ratio = imageAspectRatiosRef.current[node.imageUri];
+      if (ratio) {
+        const imgH = Math.min(PHOTO_W / ratio, MAX_PHOTO_H);
+        return { w: PHOTO_W, h: Math.round(imgH) + PHOTO_LABEL_H };
+      }
+      return { w: PHOTO_W, h: Math.round(PHOTO_W * 0.75) + PHOTO_LABEL_H };
+    }
+    return { w: NODE_W, h: NODE_H };
+  };
+  const getNodeDimsRef = useRef(getNodeDims);
+  getNodeDimsRef.current = getNodeDims;
+
   const dragState = useRef<{
     type: "canvas" | "node";
     nodeId?: string; // id of node OR member being dragged
@@ -197,7 +216,8 @@ export function HeadspaceBoard() {
         // check nodes
         for (const node of boardNodesRef.current) {
           const pos = localPosRef.current[node.id] ?? { x: node.x, y: node.y };
-          if (cx >= pos.x && cx <= pos.x + NODE_W && cy >= pos.y && cy <= pos.y + NODE_H) {
+          const { w, h } = getNodeDimsRef.current(node);
+          if (cx >= pos.x && cx <= pos.x + w && cy >= pos.y && cy <= pos.y + h) {
             hitItemId = node.id;
             break;
           }
@@ -365,10 +385,14 @@ export function HeadspaceBoard() {
               const toIsMember = boardMemberIds.includes(link.toId);
               const fp = getPos(link.fromId);
               const tp = getPos(link.toId);
-              const fW = fromIsMember ? MEMBER_W : NODE_W;
-              const fH = fromIsMember ? MEMBER_H : NODE_H;
-              const tW = toIsMember ? MEMBER_W : NODE_W;
-              const tH = toIsMember ? MEMBER_H : NODE_H;
+              const fNode = !fromIsMember ? data.headspaceNodes.find((n) => n.id === link.fromId) : undefined;
+              const tNode = !toIsMember ? data.headspaceNodes.find((n) => n.id === link.toId) : undefined;
+              const fDims = fromIsMember ? { w: MEMBER_W, h: MEMBER_H } : fNode ? getNodeDims(fNode) : { w: NODE_W, h: NODE_H };
+              const tDims = toIsMember ? { w: MEMBER_W, h: MEMBER_H } : tNode ? getNodeDims(tNode) : { w: NODE_W, h: NODE_H };
+              const fW = fDims.w;
+              const fH = fDims.h;
+              const tW = tDims.w;
+              const tH = tDims.h;
               return (
                 <Line
                   key={link.id}
@@ -394,32 +418,64 @@ export function HeadspaceBoard() {
               .map((mid) => data.members.find((m) => m.id === mid))
               .filter(Boolean) as typeof data.members;
 
+            const hasImage = !!node.imageUri;
+            const { w: nw, h: nh } = getNodeDims(node);
+
+            const borderStyle = {
+              borderColor: isConnectSrc ? meta.color : isSelected ? colors.primary : colors.border,
+              borderWidth: isSelected || isConnectSrc ? 2 : 1,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isSelected || isConnectSrc ? 0.25 : 0.08,
+              shadowRadius: 4,
+              elevation: isSelected || isConnectSrc ? 6 : 2,
+            };
+
+            if (hasImage) {
+              const imgH = nh - PHOTO_LABEL_H;
+              const photoNodeStyle = [
+                styles.photoNode,
+                { left: pos.x, top: pos.y, width: nw, backgroundColor: colors.card, ...borderStyle },
+              ];
+              const photoInner = (
+                <>
+                  <View style={[styles.photoLabelBar, { backgroundColor: meta.color + "dd" }]}>
+                    <Feather name={meta.icon as any} size={10} color="#fff" />
+                    <Text style={styles.photoNodeTitle} numberOfLines={1}>{node.title}</Text>
+                  </View>
+                  <Image
+                    source={{ uri: node.imageUri }}
+                    style={{ width: nw, height: imgH }}
+                    contentFit="cover"
+                    onLoad={(e: any) => {
+                      const { width, height } = e.source ?? {};
+                      if (width && height) {
+                        imageAspectRatiosRef.current = { ...imageAspectRatiosRef.current, [node.imageUri!]: width / height };
+                        setImageAspectRatios((prev) => ({ ...prev, [node.imageUri!]: width / height }));
+                      }
+                    }}
+                  />
+                </>
+              );
+              if (mode === "connect") {
+                return (
+                  <TouchableOpacity key={node.id} style={photoNodeStyle} activeOpacity={0.7} onPress={() => handleNodeTapRef.current(node.id)}>
+                    {photoInner}
+                  </TouchableOpacity>
+                );
+              }
+              return <View key={node.id} style={photoNodeStyle}>{photoInner}</View>;
+            }
+
             const nodeStyle = [
               styles.node,
-              {
-                left: pos.x,
-                top: pos.y,
-                backgroundColor: colors.card,
-                borderColor: isConnectSrc
-                  ? meta.color
-                  : isSelected
-                  ? colors.primary
-                  : colors.border,
-                borderWidth: isSelected || isConnectSrc ? 2 : 1,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: isSelected || isConnectSrc ? 0.25 : 0.08,
-                shadowRadius: 4,
-                elevation: isSelected || isConnectSrc ? 6 : 2,
-              },
+              { left: pos.x, top: pos.y, backgroundColor: colors.card, ...borderStyle },
             ];
-
-            const hasImage = !!node.imageUri;
 
             const nodeInner = (
               <>
                 <View style={[styles.nodeAccent, { backgroundColor: meta.color }]} />
-                <View style={[styles.nodeBody, hasImage && styles.nodeBodyNarrow]}>
+                <View style={styles.nodeBody}>
                   <View style={styles.nodeHeader}>
                     <Feather name={meta.icon as any} size={10} color={meta.color} />
                     <Text style={[styles.nodeType, { color: meta.color }]}>{meta.label}</Text>
@@ -427,7 +483,7 @@ export function HeadspaceBoard() {
                   <Text style={[styles.nodeTitle, { color: colors.foreground }]} numberOfLines={2}>
                     {node.title}
                   </Text>
-                  {linkedMembers.length > 0 && !hasImage && (
+                  {linkedMembers.length > 0 && (
                     <View style={styles.nodeAvatars}>
                       {linkedMembers.slice(0, 4).map((m) => (
                         <MemberAvatar
@@ -441,13 +497,6 @@ export function HeadspaceBoard() {
                     </View>
                   )}
                 </View>
-                {hasImage && (
-                  <Image
-                    source={{ uri: node.imageUri }}
-                    style={styles.nodeImageCol}
-                    contentFit="cover"
-                  />
-                )}
               </>
             );
 
@@ -828,12 +877,26 @@ const styles = StyleSheet.create({
   },
   nodeAccent: { width: 4 },
   nodeBody: { flex: 1, padding: 10, justifyContent: "center", gap: 4 },
-  nodeBodyNarrow: { paddingRight: 6 },
-  nodeImageCol: { width: 62, alignSelf: "stretch" },
   nodeHeader: { flexDirection: "row", alignItems: "center", gap: 4 },
   nodeType: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   nodeTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 17 },
   nodeAvatars: { flexDirection: "row", gap: 3, marginTop: 2 },
+
+  photoNode: {
+    position: "absolute",
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+    flexDirection: "column",
+  },
+  photoLabelBar: {
+    height: PHOTO_LABEL_H,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    gap: 5,
+  },
+  photoNodeTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff", flex: 1 },
 
   memberCard: {
     position: "absolute",
