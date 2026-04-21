@@ -310,24 +310,61 @@ export default function ExportScreen() {
       return;
     }
 
+    // Helper: read any URI as raw bytes.
+    // On native: try fetch() first (binary, no base64 round-trip), then fall
+    // back to FileSystem base64 read + manual decode so atob is never needed.
+    const readAsBytes = async (uri: string): Promise<Uint8Array> => {
+      if (Platform.OS === "web") {
+        // Data URL: data:<mime>;base64,<payload>
+        const b64 = uri.split(",")[1] ?? "";
+        const bin = atob(b64);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+      }
+      // Native path 1: fetch the file:// URI directly as ArrayBuffer
+      try {
+        const res = await fetch(uri);
+        const ab = await res.arrayBuffer();
+        if (ab.byteLength > 0) return new Uint8Array(ab);
+      } catch {}
+      // Native path 2: expo-file-system base64 + pure-JS decode (no atob)
+      const b64str = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+      const lookup = new Uint8Array(256);
+      for (let i = 0; i < TABLE.length; i++) lookup[TABLE.charCodeAt(i)] = i;
+      const clean = b64str.replace(/[^A-Za-z0-9+/]/g, "");
+      const len = clean.length;
+      let outLen = Math.floor(len * 3 / 4);
+      if (clean[len - 1] === "=") outLen--;
+      if (clean[len - 2] === "=") outLen--;
+      const bytes = new Uint8Array(outLen);
+      for (let i = 0, j = 0; i < len; i += 4) {
+        const a = lookup[clean.charCodeAt(i)];
+        const b = lookup[clean.charCodeAt(i + 1)];
+        const c = lookup[clean.charCodeAt(i + 2)];
+        const d = lookup[clean.charCodeAt(i + 3)];
+        bytes[j++] = (a << 2) | (b >> 4);
+        if (j < outLen) bytes[j++] = ((b & 15) << 4) | (c >> 2);
+        if (j < outLen) bytes[j++] = ((c & 3) << 6) | d;
+      }
+      return bytes;
+    };
+
     const zip = new JSZip();
     let added = 0;
 
     for (const entry of entries) {
       try {
-        if (Platform.OS === "web") {
-          // uri is a data URL: data:<mime>;base64,<data>
-          const b64 = entry.uri.split(",")[1];
-          if (b64) { zip.folder(entry.folder)!.file(entry.filename, b64, { base64: true }); added++; }
-        } else {
-          const b64 = await FileSystem.readAsStringAsync(entry.uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          zip.folder(entry.folder)!.file(entry.filename, b64, { base64: true });
-          added++;
-        }
+        const bytes = await readAsBytes(entry.uri);
+        if (bytes.byteLength === 0) continue;
+        // Pass raw Uint8Array — no base64 option, no atob/Buffer dependency
+        zip.folder(entry.folder)!.file(entry.filename, bytes);
+        added++;
       } catch {
-        // skip unreadable files silently
+        // skip unreadable files
       }
     }
 
@@ -338,15 +375,13 @@ export default function ExportScreen() {
     }
 
     try {
-      const b64Zip = await zip.generateAsync({ type: "base64" });
+      // STORE = no compression; avoids any zlib dependency on React Native
+      const uint8Zip = await zip.generateAsync({ type: "uint8array", compression: "STORE" });
       const date = new Date().toISOString().slice(0, 10);
       const filename = `pluralnest_photos_${date}.zip`;
 
       if (Platform.OS === "web") {
-        const binary = atob(b64Zip);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const blob = new Blob([bytes], { type: "application/zip" });
+        const blob = new Blob([uint8Zip], { type: "application/zip" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url; a.download = filename;
@@ -354,6 +389,16 @@ export default function ExportScreen() {
         document.body.removeChild(a); URL.revokeObjectURL(url);
         flash(setPhotoStatus, { type: "success", msg: `Downloading ${added} photo${added !== 1 ? "s" : ""} as ZIP!` });
         return;
+      }
+
+      // Convert Uint8Array → base64 in safe chunks (avoids call-stack overflow)
+      const CHUNK = 4096;
+      let b64Zip = "";
+      for (let i = 0; i < uint8Zip.length; i += CHUNK) {
+        let str = "";
+        const end = Math.min(i + CHUNK, uint8Zip.length);
+        for (let j = i; j < end; j++) str += String.fromCharCode(uint8Zip[j]);
+        b64Zip += btoa(str);
       }
 
       const path = `${FileSystem.cacheDirectory}${filename}`;
