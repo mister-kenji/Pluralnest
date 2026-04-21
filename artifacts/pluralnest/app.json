@@ -22,7 +22,17 @@
       "package": "com.kenjibro.pluralnest"
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "PluralNest",
+      "shortName": "PluralNest",
+      "description": "Privacy-first app for plural systems. All data stays on your device.",
+      "themeColor": "#1a1a1a",
+      "backgroundColor": "#0d0d0d",
+      "display": "standalone",
+      "orientation": "portrait",
+      "lang": "en",
+      "scope": "/",
+      "startUrl": "/"
     },
     "plugins": [
       [
