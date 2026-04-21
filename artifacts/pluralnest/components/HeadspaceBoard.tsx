@@ -69,6 +69,8 @@ export function HeadspaceBoard() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [localPos, setLocalPos] = useState<Record<string, { x: number; y: number }>>({});
+  const [localSizes, setLocalSizes] = useState<Record<string, { w: number; h: number }>>({});
+  const localSizesRef = useRef<Record<string, { w: number; h: number }>>({});
 
   const canvasOffset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const canvasOffsetRef = useRef({ x: 0, y: 0 });
@@ -156,6 +158,55 @@ export function HeadspaceBoard() {
     }
   };
 
+  const getNodeSize = (node: HeadspaceNode): { w: number; h: number } => {
+    const local = localSizes[node.id];
+    if (local) return local;
+    return { w: node.customW ?? NODE_W, h: node.customH ?? NODE_H };
+  };
+  const getNodeSizeRef = useRef(getNodeSize);
+  getNodeSizeRef.current = getNodeSize;
+
+  const resizeState = useRef<{ startW: number; startH: number; nodeId: string } | null>(null);
+
+  const updateHeadspaceNodesRef = useRef(updateHeadspaceNodes);
+  updateHeadspaceNodesRef.current = updateHeadspaceNodes;
+
+  const resizePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        const nodeId = selectedNodeIdRef.current;
+        if (!nodeId) return;
+        const node = headspaceNodesRef.current.find((n) => n.id === nodeId);
+        const size = localSizesRef.current[nodeId] ?? { w: node?.customW ?? NODE_W, h: node?.customH ?? NODE_H };
+        resizeState.current = { startW: size.w, startH: size.h, nodeId };
+      },
+      onPanResponderMove: (_, gs) => {
+        if (!resizeState.current) return;
+        const { startW, startH, nodeId } = resizeState.current;
+        const newW = Math.max(110, startW + gs.dx);
+        const newH = Math.max(60, startH + gs.dy);
+        localSizesRef.current = { ...localSizesRef.current, [nodeId]: { w: newW, h: newH } };
+        setLocalSizes((prev) => ({ ...prev, [nodeId]: { w: newW, h: newH } }));
+      },
+      onPanResponderRelease: () => {
+        if (!resizeState.current) return;
+        const { nodeId } = resizeState.current;
+        const size = localSizesRef.current[nodeId];
+        if (size) {
+          updateHeadspaceNodesRef.current(
+            headspaceNodesRef.current.map((n) =>
+              n.id === nodeId ? { ...n, customW: Math.round(size.w), customH: Math.round(size.h) } : n,
+            ),
+          );
+        }
+        resizeState.current = null;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+    }),
+  ).current;
+
   const dragState = useRef<{
     type: "canvas" | "node";
     nodeId?: string; // id of node OR member being dragged
@@ -197,7 +248,8 @@ export function HeadspaceBoard() {
         // check nodes
         for (const node of boardNodesRef.current) {
           const pos = localPosRef.current[node.id] ?? { x: node.x, y: node.y };
-          if (cx >= pos.x && cx <= pos.x + NODE_W && cy >= pos.y && cy <= pos.y + NODE_H) {
+          const { w, h } = getNodeSizeRef.current(node);
+          if (cx >= pos.x && cx <= pos.x + w && cy >= pos.y && cy <= pos.y + h) {
             hitItemId = node.id;
             break;
           }
@@ -365,10 +417,14 @@ export function HeadspaceBoard() {
               const toIsMember = boardMemberIds.includes(link.toId);
               const fp = getPos(link.fromId);
               const tp = getPos(link.toId);
-              const fW = fromIsMember ? MEMBER_W : NODE_W;
-              const fH = fromIsMember ? MEMBER_H : NODE_H;
-              const tW = toIsMember ? MEMBER_W : NODE_W;
-              const tH = toIsMember ? MEMBER_H : NODE_H;
+              const fNode = !fromIsMember ? data.headspaceNodes.find((n) => n.id === link.fromId) : undefined;
+              const tNode = !toIsMember ? data.headspaceNodes.find((n) => n.id === link.toId) : undefined;
+              const fSize = fromIsMember ? { w: MEMBER_W, h: MEMBER_H } : fNode ? getNodeSize(fNode) : { w: NODE_W, h: NODE_H };
+              const tSize = toIsMember ? { w: MEMBER_W, h: MEMBER_H } : tNode ? getNodeSize(tNode) : { w: NODE_W, h: NODE_H };
+              const fW = fSize.w;
+              const fH = fSize.h;
+              const tW = tSize.w;
+              const tH = tSize.h;
               return (
                 <Line
                   key={link.id}
@@ -394,11 +450,15 @@ export function HeadspaceBoard() {
               .map((mid) => data.members.find((m) => m.id === mid))
               .filter(Boolean) as typeof data.members;
 
+            const { w: nw, h: nh } = getNodeSize(node);
+
             const nodeStyle = [
               styles.node,
               {
                 left: pos.x,
                 top: pos.y,
+                width: nw,
+                height: nh,
                 backgroundColor: colors.card,
                 borderColor: isConnectSrc
                   ? meta.color
@@ -424,7 +484,7 @@ export function HeadspaceBoard() {
                     <Feather name={meta.icon as any} size={10} color={meta.color} />
                     <Text style={[styles.nodeType, { color: meta.color }]}>{meta.label}</Text>
                   </View>
-                  <Text style={[styles.nodeTitle, { color: colors.foreground }]} numberOfLines={2}>
+                  <Text style={[styles.nodeTitle, { color: colors.foreground }]} numberOfLines={3}>
                     {node.title}
                   </Text>
                   {linkedMembers.length > 0 && !hasImage && (
@@ -447,6 +507,15 @@ export function HeadspaceBoard() {
                     style={styles.nodeImageCol}
                     contentFit="cover"
                   />
+                )}
+                {/* Resize handle — only in pan mode when selected */}
+                {isSelected && mode === "pan" && (
+                  <View
+                    style={[styles.resizeHandle, { backgroundColor: colors.card, borderColor: colors.primary }]}
+                    {...resizePanResponder.panHandlers}
+                  >
+                    <Feather name="maximize-2" size={9} color={colors.primary} />
+                  </View>
                 )}
               </>
             );
@@ -819,8 +888,6 @@ const styles = StyleSheet.create({
 
   node: {
     position: "absolute",
-    width: NODE_W,
-    height: NODE_H,
     borderRadius: 12,
     borderWidth: 1,
     flexDirection: "row",
@@ -828,6 +895,17 @@ const styles = StyleSheet.create({
   },
   nodeAccent: { width: 4 },
   nodeBody: { flex: 1, padding: 10, justifyContent: "center", gap: 4 },
+  resizeHandle: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderTopLeftRadius: 7,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   nodeBodyNarrow: { paddingRight: 6 },
   nodeImageCol: { width: 62, alignSelf: "stretch" },
   nodeHeader: { flexDirection: "row", alignItems: "center", gap: 4 },

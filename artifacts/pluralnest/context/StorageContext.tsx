@@ -113,6 +113,8 @@ export type HeadspaceNode = {
   imageUri?: string;
   x: number;
   y: number;
+  customW?: number;
+  customH?: number;
   connectedMemberIds: string[];
   parentId?: string;
   children: string[];
