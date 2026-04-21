@@ -1,0 +1,56 @@
+# netlify.toml — PluralNest PWA web deploy
+#
+# Builds the Expo web export from the pnpm monorepo root so that:
+#  - pnpm workspace resolution works correctly
+#  - Metro finds the app entry at the expected path (artifacts/pluralnest/)
+#  - node_modules are shared correctly across workspace packages
+#
+# The mobile app (iOS/Android) is completely unaffected by this config.
+
+[build]
+  # No "base" — run from the repository root.
+  # pnpm --filter runs the script with CWD set to artifacts/pluralnest/,
+  # which is exactly where Metro expects the Expo project root to be.
+  command = "pnpm install && pnpm --filter @workspace/pluralnest run export:web"
+  publish = "artifacts/pluralnest/dist"
+
+[build.environment]
+  NODE_VERSION  = "20"
+  PNPM_VERSION  = "9"
+  # Prevents Expo/React build warnings from failing the CI build
+  CI = "false"
+
+# ── Cache headers ─────────────────────────────────────────────────────────────
+
+# JS bundles under /_expo/ have content-hashed filenames — cache forever
+[[headers]]
+  for = "/_expo/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Service worker must NOT be cached so browsers always pick up updates
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control    = "no-cache, no-store, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+# PWA manifest — allow short-term caching
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# HTML pages — always revalidate so users get the latest shell
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# ── SPA fallback ──────────────────────────────────────────────────────────────
+# Expo Router uses client-side navigation. Without this, a hard refresh on
+# any route other than "/" returns a 404 from Netlify instead of index.html.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
