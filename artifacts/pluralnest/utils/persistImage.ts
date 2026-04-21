@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 
 const MIME_TO_EXT: Record<string, string> = {
