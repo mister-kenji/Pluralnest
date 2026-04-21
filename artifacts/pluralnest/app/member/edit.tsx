@@ -179,11 +179,46 @@ export default function EditMemberScreen() {
       createdAt: existingMember?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
     };
-    if (existingMember) {
-      updateMembers(data.members.map((m) => (m.id === updated.id ? updated : m)));
-    } else {
-      updateMembers([...data.members, updated]);
+    // Build the initial list with this member updated/added
+    let membersList: Member[] = existingMember
+      ? data.members.map((m) => (m.id === updated.id ? updated : m))
+      : [...data.members, updated];
+
+    const newRels = updated.relationships;
+    const oldRels = existingMember?.relationships ?? [];
+
+    // For each member now in A's relationships: add or update the reciprocal entry on B
+    for (const rel of newRels) {
+      membersList = membersList.map((m) => {
+        if (m.id !== rel.memberId) return m;
+        const existing = m.relationships.find((r) => r.memberId === updated.id);
+        if (!existing) {
+          return { ...m, relationships: [...m.relationships, { memberId: updated.id, type: rel.type }] };
+        }
+        if (existing.type !== rel.type) {
+          return {
+            ...m,
+            relationships: m.relationships.map((r) =>
+              r.memberId === updated.id ? { ...r, type: rel.type } : r,
+            ),
+          };
+        }
+        return m;
+      });
     }
+
+    // For each member removed from A's relationships: remove the reciprocal entry on B
+    const removedIds = oldRels
+      .map((r) => r.memberId)
+      .filter((mid) => !newRels.find((r) => r.memberId === mid));
+    for (const mid of removedIds) {
+      membersList = membersList.map((m) => {
+        if (m.id !== mid) return m;
+        return { ...m, relationships: m.relationships.filter((r) => r.memberId !== updated.id) };
+      });
+    }
+
+    updateMembers(membersList);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.back();
   };
