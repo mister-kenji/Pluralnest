@@ -76,6 +76,10 @@ export function HeadspaceBoard() {
   const canvasOffsetRef = useRef({ x: 0, y: 0 });
   const localPosRef = useRef<Record<string, { x: number; y: number }>>({});
   const boardLayoutRef = useRef({ width: 320, height: 500 });
+  // Page-absolute position of the canvasContainer — used so we can convert
+  // gs.x0/y0 (pageX/pageY, always reliable on native) into container-local coords.
+  const containerRef = useRef<View>(null);
+  const containerPageRef = useRef({ x: 0, y: 0 });
 
   const boardNodesRef = useRef<HeadspaceNode[]>([]);
   boardNodesRef.current = boardNodes;
@@ -203,9 +207,13 @@ export function HeadspaceBoard() {
           return;
         }
 
-        const { locationX, locationY } = evt.nativeEvent;
-        const cx = locationX - canvasOffsetRef.current.x;
-        const cy = locationY - canvasOffsetRef.current.y;
+        // gs.x0/y0 are pageX/pageY (screen-absolute) — reliable regardless of
+        // which child view received the initial touch (locationX/locationY is
+        // relative to the touch-target element, not the responder, on native).
+        const lx = gs.x0 - containerPageRef.current.x;
+        const ly = gs.y0 - containerPageRef.current.y;
+        const cx = lx - canvasOffsetRef.current.x;
+        const cy = ly - canvasOffsetRef.current.y;
 
         let hitItemId: string | null = null;
         // check nodes
@@ -398,6 +406,7 @@ export function HeadspaceBoard() {
     <View style={styles.container}>
       {/* ── Canvas ── */}
       <View
+        ref={containerRef}
         style={styles.canvasContainer}
         {...panResponder.panHandlers}
         onLayout={(e) => {
@@ -405,6 +414,11 @@ export function HeadspaceBoard() {
             width: e.nativeEvent.layout.width,
             height: e.nativeEvent.layout.height,
           };
+          // Capture page-absolute position so grant handler can convert
+          // gs.x0/y0 (pageX/pageY) into container-local coordinates.
+          containerRef.current?.measureInWindow((px, py) => {
+            containerPageRef.current = { x: px, y: py };
+          });
         }}
       >
         <Animated.View
