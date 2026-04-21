@@ -5,6 +5,7 @@ import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import * as Sharing from "expo-sharing";
+import JSZip from "jszip";
 import React, { useState } from "react";
 import {
   Alert,
@@ -26,11 +27,13 @@ type Status = { type: "success" | "error"; msg: string } | null;
 export default function ExportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { exportData, importData } = useStorage();
+  const { exportData, importData, data } = useStorage();
   const [showImport, setShowImport] = useState(false);
   const [pasteJson, setPasteJson] = useState("");
   const [exportStatus, setExportStatus] = useState<Status>(null);
   const [copiedFallback, setCopiedFallback] = useState(false);
+  const [photoStatus, setPhotoStatus] = useState<Status>(null);
+  const [exportingPhotos, setExportingPhotos] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -261,6 +264,115 @@ export default function ExportScreen() {
     confirmAndImport(trimmed);
   };
 
+  // ── Photo ZIP export ─────────────────────────────────────────────────────
+  const doExportPhotos = async () => {
+    if (exportingPhotos) return;
+    setExportingPhotos(true);
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+
+    const safeName = (s: string) =>
+      (s ?? "unnamed").replace(/[^a-z0-9_\-. ]/gi, "_").slice(0, 40).trim() || "unnamed";
+
+    const extFromUri = (uri: string) => {
+      const m = uri.split("?")[0].match(/\.([a-z0-9]+)$/i);
+      return m ? m[1].toLowerCase() : "jpg";
+    };
+
+    // Gather { folder, filename, uri }
+    type PhotoEntry = { folder: string; filename: string; uri: string };
+    const entries: PhotoEntry[] = [];
+
+    const seen = new Set<string>();
+    const add = (folder: string, name: string, uri: string) => {
+      if (!uri || seen.has(uri)) return;
+      // Skip non-local (web base64 is fine; skip blank/placeholder)
+      if (Platform.OS !== "web" && !uri.startsWith("file://")) return;
+      if (Platform.OS === "web" && !uri.startsWith("data:")) return;
+      seen.add(uri);
+      entries.push({ folder, filename: name, uri });
+    };
+
+    for (const m of data.members ?? []) {
+      const n = safeName(m.name);
+      if (m.profileImage) add("profile-pictures", `${n}_${m.id.slice(0,6)}.${extFromUri(m.profileImage)}`, m.profileImage);
+      if (m.bannerImage)  add("banners",           `${n}_${m.id.slice(0,6)}.${extFromUri(m.bannerImage)}`,  m.bannerImage);
+    }
+    for (const node of data.headspaceNodes ?? []) {
+      if (node.imageUri) {
+        const n = safeName(node.title ?? "node");
+        add("headspace", `${n}_${node.id.slice(0,6)}.${extFromUri(node.imageUri)}`, node.imageUri);
+      }
+    }
+
+    if (entries.length === 0) {
+      flash(setPhotoStatus, { type: "error", msg: "No locally stored photos found to export." });
+      setExportingPhotos(false);
+      return;
+    }
+
+    const zip = new JSZip();
+    let added = 0;
+
+    for (const entry of entries) {
+      try {
+        if (Platform.OS === "web") {
+          // uri is a data URL: data:<mime>;base64,<data>
+          const b64 = entry.uri.split(",")[1];
+          if (b64) { zip.folder(entry.folder)!.file(entry.filename, b64, { base64: true }); added++; }
+        } else {
+          const b64 = await FileSystem.readAsStringAsync(entry.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          zip.folder(entry.folder)!.file(entry.filename, b64, { base64: true });
+          added++;
+        }
+      } catch {
+        // skip unreadable files silently
+      }
+    }
+
+    if (added === 0) {
+      flash(setPhotoStatus, { type: "error", msg: "Could not read any photos from storage." });
+      setExportingPhotos(false);
+      return;
+    }
+
+    try {
+      const b64Zip = await zip.generateAsync({ type: "base64" });
+      const date = new Date().toISOString().slice(0, 10);
+      const filename = `pluralnest_photos_${date}.zip`;
+
+      if (Platform.OS === "web") {
+        const binary = atob(b64Zip);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: "application/zip" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+        flash(setPhotoStatus, { type: "success", msg: `Downloading ${added} photo${added !== 1 ? "s" : ""} as ZIP!` });
+        return;
+      }
+
+      const path = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(path, b64Zip, { encoding: FileSystem.EncodingType.Base64 });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(path, { mimeType: "application/zip", dialogTitle: "Save Photos ZIP", UTI: "public.zip-archive" });
+        flash(setPhotoStatus, { type: "success", msg: `Shared ${added} photo${added !== 1 ? "s" : ""} in ZIP — save it somewhere safe!` });
+      } else {
+        flash(setPhotoStatus, { type: "error", msg: "Sharing not available on this device." });
+      }
+    } catch (err: any) {
+      flash(setPhotoStatus, { type: "error", msg: `ZIP failed: ${err?.message ?? "unknown error"}` });
+    } finally {
+      setExportingPhotos(false);
+    }
+  };
+
   let previewJson = "";
   try {
     previewJson = exportData().slice(0, 300);
@@ -340,6 +452,42 @@ export default function ExportScreen() {
           />
           <Text style={[styles.statusText, { color: exportStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>
             {exportStatus.msg}
+          </Text>
+        </View>
+      )}
+
+      {/* ── PHOTO ZIP ──────────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>Photos</Text>
+      <View style={[styles.infoRow, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+        <Feather name="image" size={14} color={colors.mutedForeground} style={{ marginTop: 1 }} />
+        <Text style={[styles.infoRowText, { color: colors.mutedForeground }]}>
+          Exports all locally stored images (profile pictures, banners, headspace photos) into a ZIP file with sub-folders by type. Images are not included in the JSON backup.
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: exportingPhotos ? colors.secondary : colors.card, borderWidth: 1, borderColor: colors.border }]}
+        onPress={doExportPhotos}
+        disabled={exportingPhotos}
+      >
+        <Feather name={exportingPhotos ? "loader" : "archive"} size={18} color={colors.foreground} />
+        <Text style={[styles.btnText, { color: colors.foreground }]}>
+          {exportingPhotos ? "Building ZIP…" : "Export Photos as ZIP"}
+        </Text>
+      </TouchableOpacity>
+
+      {photoStatus && (
+        <View style={[styles.statusBar, {
+          backgroundColor: photoStatus.type === "success" ? "#22c55e22" : "#ef444422",
+          borderColor: photoStatus.type === "success" ? "#22c55e55" : "#ef444455",
+        }]}>
+          <Feather
+            name={photoStatus.type === "success" ? "check-circle" : "alert-circle"}
+            size={14}
+            color={photoStatus.type === "success" ? "#22c55e" : "#ef4444"}
+          />
+          <Text style={[styles.statusText, { color: photoStatus.type === "success" ? "#22c55e" : "#ef4444" }]}>
+            {photoStatus.msg}
           </Text>
         </View>
       )}
@@ -487,6 +635,16 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
   },
   pasteToggleText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  infoRow: {
+    flexDirection: "row",
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 10,
+    alignItems: "flex-start",
+  },
+  infoRowText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17, flex: 1 },
   pasteSection: { gap: 10 },
   pasteInput: {
     borderWidth: 1,
