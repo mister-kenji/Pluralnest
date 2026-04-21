@@ -153,7 +153,7 @@ export default function ExportScreen() {
     const path = `${FileSystem.cacheDirectory}${filename}`;
     try {
       await FileSystem.writeAsStringAsync(path, json, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: "utf8" as any,
       });
     } catch {
       await copyToClipboard(json);
@@ -180,7 +180,7 @@ export default function ExportScreen() {
   const readUriAsText = async (uri: string): Promise<string> => {
     try {
       return await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: "utf8" as any,
       });
     } catch {}
     const resp = await fetch(uri);
@@ -330,7 +330,7 @@ export default function ExportScreen() {
       } catch {}
       // Native path 2: expo-file-system base64 + pure-JS decode (no atob)
       const b64str = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: "base64" as any,
       });
       const TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
       const lookup = new Uint8Array(256);
@@ -402,7 +402,7 @@ export default function ExportScreen() {
       }
 
       const path = `${FileSystem.cacheDirectory}${filename}`;
-      await FileSystem.writeAsStringAsync(path, b64Zip, { encoding: FileSystem.EncodingType.Base64 });
+      await FileSystem.writeAsStringAsync(path, b64Zip, { encoding: "base64" as any });
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
