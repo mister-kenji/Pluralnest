@@ -34,6 +34,8 @@ export default function ExportScreen() {
   const [copiedFallback, setCopiedFallback] = useState(false);
   const [photoStatus, setPhotoStatus] = useState<Status>(null);
   const [exportingPhotos, setExportingPhotos] = useState(false);
+  const [showSpImport, setShowSpImport] = useState(false);
+  const [spPasteJson, setSpPasteJson] = useState("");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -418,6 +420,254 @@ export default function ExportScreen() {
     }
   };
 
+  // ── Simply Plural import transform ──────────────────────────────────────
+  const transformSimplyPlural = (sp: any): string => {
+    const now = Date.now();
+
+    // GlobalFields for PluralNest settings
+    const customGlobalFields = (sp.customFields ?? [])
+      .filter((cf: any) => cf._id && cf.name)
+      .map((cf: any) => ({ id: cf._id, label: cf.name, showByDefault: true }));
+
+    // Members
+    const members = (sp.members ?? []).map((m: any) => {
+      const customFields: { fieldId: string; value: string }[] = [];
+      if (m.info && typeof m.info === "object") {
+        for (const [fieldId, value] of Object.entries(m.info)) {
+          if (typeof value === "string" && value.trim()) {
+            customFields.push({ fieldId, value: value.trim() });
+          }
+        }
+      }
+      return {
+        id: m._id,
+        name: m.name ?? "Unknown",
+        pronouns: m.pronouns ?? "",
+        role: "",
+        color: m.color ?? "#888888",
+        avatarShape: "circle",
+        description: m.desc ?? "",
+        customFields,
+        relationships: [],
+        tags: [],
+        isArchived: m.archived === true,
+        createdAt: m.lastOperationTime ?? now,
+        updatedAt: m.lastOperationTime ?? now,
+      };
+    });
+
+    // Front history
+    const frontEntries = (sp.frontHistory ?? []).map((f: any) => ({
+      id: f._id,
+      memberId: f.member ?? "",
+      status: "co-front",
+      startTime: f.startTime ?? now,
+      endTime: f.live ? undefined : (f.endTime ?? undefined),
+    }));
+
+    // Notes → journal entries
+    const journalEntries = (sp.notes ?? []).map((n: any) => ({
+      id: n._id,
+      memberId: n.member ?? "",
+      title: n.title ?? "Untitled",
+      content: n.note ?? "",
+      tags: [],
+      createdAt: n.date ?? now,
+      updatedAt: n.date ?? now,
+      isLocked: false,
+      isPinned: false,
+    }));
+
+    // Channels
+    const chatChannels = [
+      { id: "general", name: "general", createdAt: 0 },
+      ...(sp.channels ?? []).map((c: any) => ({
+        id: c._id,
+        name: c.name ?? "Channel",
+        createdAt: c.lastOperationTime ?? now,
+      })),
+    ];
+
+    // Chat messages
+    const chatMessages = (sp.chatMessages ?? []).map((m: any) => ({
+      id: m._id,
+      memberId: m.writer ?? "",
+      channelId: m.channel,
+      content: m.message ?? "",
+      isPinned: false,
+      createdAt: m.writtenAt ?? now,
+      reactions: [],
+    }));
+
+    // Groups — compute subGroupIds by scanning all groups for matching parent
+    const spGroups: any[] = sp.groups ?? [];
+    const groups = spGroups.map((g: any) => {
+      const parentGroupId = g.parent && g.parent !== "root" ? g.parent : undefined;
+      const subGroupIds = spGroups
+        .filter((sg: any) => sg.parent === g._id)
+        .map((sg: any) => sg._id);
+      return {
+        id: g._id,
+        name: g.name ?? "Group",
+        color: g.color ?? "#888888",
+        memberIds: Array.isArray(g.members) ? g.members : [],
+        subGroupIds,
+        parentGroupId,
+        showMembersInRoot: !parentGroupId,
+        description: g.desc ?? "",
+        createdAt: g.lastOperationTime ?? now,
+      };
+    });
+
+    const appData = {
+      members,
+      frontEntries,
+      journalEntries,
+      journalTags: [],
+      chatChannels,
+      chatMessages,
+      groups,
+      forumPosts: [],
+      headspaceNodes: [],
+      headspaceBoardNodeIds: [],
+      headspaceBoardLinks: [],
+      headspaceBoardMemberIds: [],
+      memberBoardPositions: {},
+      assets: [],
+      deletedItems: [],
+      customEmojis: [],
+      settings: { customGlobalFields },
+      systemProfile: { description: "" },
+      emergencyInfo: { content: "", contacts: [] },
+    };
+    return JSON.stringify(appData);
+  };
+
+  const runSpImport = (rawJson: string) => {
+    const json = rawJson.replace(/^\uFEFF/, "").trim();
+    let sp: any;
+    try {
+      sp = JSON.parse(json);
+    } catch (e: any) {
+      Alert.alert("Invalid JSON", `Not valid JSON.\n\nParser said: ${e?.message ?? "unknown error"}`);
+      return;
+    }
+    if (!sp || typeof sp !== "object" || Array.isArray(sp)) {
+      Alert.alert("Wrong Format", "This doesn't look like a Simply Plural export file.");
+      return;
+    }
+    // Detect if it looks like a SP export (has members array with _id fields)
+    const hasSpMembers = Array.isArray(sp.members) && sp.members.every((m: any) => m._id);
+    if (!hasSpMembers && !sp.frontHistory) {
+      Alert.alert(
+        "Not a Simply Plural Export",
+        "This file doesn't look like a Simply Plural export. Use the regular Import section for PluralNest backups."
+      );
+      return;
+    }
+    let transformed: string;
+    try {
+      transformed = transformSimplyPlural(sp);
+    } catch (e: any) {
+      Alert.alert("Transform Failed", `Could not convert the Simply Plural data.\n\nError: ${e?.message ?? "unknown"}`);
+      return;
+    }
+
+    const memberCount = sp.members?.length ?? 0;
+    const frontCount = sp.frontHistory?.length ?? 0;
+    const groupCount = sp.groups?.length ?? 0;
+    const msgCount = sp.chatMessages?.length ?? 0;
+    const noteCount = sp.notes?.length ?? 0;
+
+    const summary = [
+      `${memberCount} member${memberCount !== 1 ? "s" : ""}`,
+      `${frontCount} front entr${frontCount !== 1 ? "ies" : "y"}`,
+      groupCount > 0 ? `${groupCount} group${groupCount !== 1 ? "s" : ""}` : null,
+      msgCount > 0 ? `${msgCount} chat message${msgCount !== 1 ? "s" : ""}` : null,
+      noteCount > 0 ? `${noteCount} note${noteCount !== 1 ? "s" : ""}` : null,
+    ].filter(Boolean).join(", ");
+
+    const confirmMsg =
+      `This will import your Simply Plural data and replace everything currently in PluralNest.\n\nFound: ${summary}.\n\nProfile images cannot be transferred (they live on Simply Plural's servers). Everything else will import.`;
+
+    if (Platform.OS === "web") {
+      if (!window.confirm(confirmMsg)) return;
+      const err = importData(transformed);
+      if (err === null) {
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+        Alert.alert("Imported!", `Successfully imported ${summary} from Simply Plural.`);
+        setSpPasteJson("");
+        setShowSpImport(false);
+      } else {
+        Alert.alert("Import Failed", `Error: ${err}`);
+      }
+      return;
+    }
+
+    Alert.alert("Import from Simply Plural", confirmMsg, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Import",
+        style: "destructive",
+        onPress: () => {
+          const err = importData(transformed);
+          if (err === null) {
+            try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+            Alert.alert("Imported!", `Successfully imported ${summary} from Simply Plural.`);
+            setSpPasteJson("");
+            setShowSpImport(false);
+          } else {
+            try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
+            Alert.alert("Import Failed", `Error applying data: ${err}`);
+          }
+        },
+      },
+    ]);
+  };
+
+  const pickAndImportSP = async () => {
+    if (Platform.OS === "web") {
+      try {
+        const el = document.createElement("input");
+        el.type = "file";
+        el.accept = ".json,application/json,text/plain";
+        el.onchange = async () => {
+          const file = el.files?.[0];
+          if (!file) return;
+          runSpImport(await file.text());
+        };
+        el.click();
+      } catch {
+        Alert.alert("Error", "File picker unavailable. Paste JSON manually.");
+      }
+      return;
+    }
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/json", "text/plain", "*/*"],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) { Alert.alert("Error", "No file selected."); return; }
+      const text = await readUriAsText(asset.uri);
+      runSpImport(text);
+    } catch {
+      Alert.alert("Error", "Could not read the file. Try pasting manually.");
+    }
+  };
+
+  const pasteFromClipboardSP = async () => {
+    let text = "";
+    try { text = (await Clipboard.getStringAsync()) ?? ""; } catch {
+      Alert.alert("Error", "Could not read clipboard.");
+      return;
+    }
+    const trimmed = text.trim();
+    if (!trimmed) { Alert.alert("Clipboard Empty", "No text found on the clipboard."); return; }
+    runSpImport(trimmed);
+  };
+
   let previewJson = "";
   try {
     previewJson = exportData().slice(0, 300);
@@ -593,6 +843,75 @@ export default function ExportScreen() {
           >
             <Feather name="upload" size={18} color={colors.primaryForeground} />
             <Text style={[styles.btnText, { color: colors.primaryForeground }]}>Import from Text</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── SIMPLY PLURAL IMPORT ────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
+        Import from Simply Plural
+      </Text>
+
+      <View style={[styles.infoRow, { backgroundColor: colors.secondary, borderColor: colors.border, marginBottom: 10 }]}>
+        <Feather name="info" size={14} color={colors.mutedForeground} style={{ marginTop: 1 }} />
+        <Text style={[styles.infoRowText, { color: colors.mutedForeground }]}>
+          Imports members, front history, groups, chat, and notes from a Simply Plural data export. Profile images cannot transfer (they are hosted on Simply Plural's servers). Your current PluralNest data will be replaced.
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.importBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={pickAndImportSP}
+      >
+        <Feather name="folder" size={18} color={colors.foreground} />
+        <Text style={[styles.importBtnText, { color: colors.foreground }]}>
+          {Platform.OS === "web" ? "Choose Simply Plural Export" : "Pick Simply Plural Export"}
+        </Text>
+      </TouchableOpacity>
+
+      {Platform.OS !== "web" && (
+        <TouchableOpacity
+          style={[styles.importBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={pasteFromClipboardSP}
+        >
+          <Feather name="clipboard" size={18} color={colors.foreground} />
+          <Text style={[styles.importBtnText, { color: colors.foreground }]}>
+            Paste Simply Plural JSON
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        style={[styles.pasteToggle, { borderColor: colors.border }]}
+        onPress={() => setShowSpImport((v) => !v)}
+      >
+        <Feather name={showSpImport ? "chevron-up" : "chevron-down"} size={15} color={colors.mutedForeground} />
+        <Text style={[styles.pasteToggleText, { color: colors.mutedForeground }]}>
+          Or paste Simply Plural JSON manually
+        </Text>
+      </TouchableOpacity>
+
+      {showSpImport && (
+        <View style={styles.pasteSection}>
+          <TextInput
+            style={[styles.pasteInput, {
+              color: colors.foreground,
+              borderColor: colors.border,
+              backgroundColor: colors.secondary,
+            }]}
+            value={spPasteJson}
+            onChangeText={setSpPasteJson}
+            placeholder="Paste Simply Plural export JSON here..."
+            placeholderTextColor={colors.mutedForeground}
+            multiline
+            textAlignVertical="top"
+          />
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.primary }]}
+            onPress={() => { const t = spPasteJson.trim(); if (t) runSpImport(t); }}
+          >
+            <Feather name="upload" size={18} color={colors.primaryForeground} />
+            <Text style={[styles.btnText, { color: colors.primaryForeground }]}>Import Simply Plural Data</Text>
           </TouchableOpacity>
         </View>
       )}
