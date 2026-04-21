@@ -166,50 +166,13 @@ export function HeadspaceBoard() {
   const getNodeSizeRef = useRef(getNodeSize);
   getNodeSizeRef.current = getNodeSize;
 
-  const resizeState = useRef<{ startW: number; startH: number; nodeId: string } | null>(null);
-
   const updateHeadspaceNodesRef = useRef(updateHeadspaceNodes);
   updateHeadspaceNodesRef.current = updateHeadspaceNodes;
 
-  const resizePanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        const nodeId = selectedNodeIdRef.current;
-        if (!nodeId) return;
-        const node = headspaceNodesRef.current.find((n) => n.id === nodeId);
-        const size = localSizesRef.current[nodeId] ?? { w: node?.customW ?? NODE_W, h: node?.customH ?? NODE_H };
-        resizeState.current = { startW: size.w, startH: size.h, nodeId };
-      },
-      onPanResponderMove: (_, gs) => {
-        if (!resizeState.current) return;
-        const { startW, startH, nodeId } = resizeState.current;
-        const newW = Math.max(110, startW + gs.dx);
-        const newH = Math.max(60, startH + gs.dy);
-        localSizesRef.current = { ...localSizesRef.current, [nodeId]: { w: newW, h: newH } };
-        setLocalSizes((prev) => ({ ...prev, [nodeId]: { w: newW, h: newH } }));
-      },
-      onPanResponderRelease: () => {
-        if (!resizeState.current) return;
-        const { nodeId } = resizeState.current;
-        const size = localSizesRef.current[nodeId];
-        if (size) {
-          updateHeadspaceNodesRef.current(
-            headspaceNodesRef.current.map((n) =>
-              n.id === nodeId ? { ...n, customW: Math.round(size.w), customH: Math.round(size.h) } : n,
-            ),
-          );
-        }
-        resizeState.current = null;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      },
-    }),
-  ).current;
-
+  // "resize" reuses startVal: { x: startW, y: startH }
   const dragState = useRef<{
-    type: "canvas" | "node";
-    nodeId?: string; // id of node OR member being dragged
+    type: "canvas" | "node" | "resize";
+    nodeId?: string;
     startVal: { x: number; y: number };
     moved: boolean;
   }>({ type: "canvas", startVal: { x: 0, y: 0 }, moved: false });
@@ -275,6 +238,24 @@ export function HeadspaceBoard() {
             : (localPosRef.current[hitItemId] ??
                memberBoardPositionsRef.current[hitItemId] ??
                { x: 60, y: 60 });
+
+          // Check if touch landed in the resize handle zone (bottom-right 24×24 of selected node)
+          if (isNode && hitItemId === selectedNodeIdRef.current) {
+            const node = boardNodesRef.current.find((n) => n.id === hitItemId);
+            if (node) {
+              const { w, h } = getNodeSizeRef.current(node);
+              if (cx >= pos.x + w - 24 && cy >= pos.y + h - 24) {
+                dragState.current = {
+                  type: "resize",
+                  nodeId: hitItemId,
+                  startVal: { x: w, y: h },
+                  moved: false,
+                };
+                return;
+              }
+            }
+          }
+
           dragState.current = {
             type: "node",
             nodeId: hitItemId,
@@ -293,12 +274,18 @@ export function HeadspaceBoard() {
         if (Math.abs(gs.dx) > 4 || Math.abs(gs.dy) > 4) {
           dragState.current.moved = true;
         }
-        if (dragState.current.type === "node" && dragState.current.nodeId) {
+        if (dragState.current.type === "resize" && dragState.current.nodeId) {
+          const newW = Math.max(110, dragState.current.startVal.x + gs.dx);
+          const newH = Math.max(60, dragState.current.startVal.y + gs.dy);
+          const id = dragState.current.nodeId;
+          localSizesRef.current = { ...localSizesRef.current, [id]: { w: newW, h: newH } };
+          setLocalSizes((prev) => ({ ...prev, [id]: { w: newW, h: newH } }));
+        } else if (dragState.current.type === "node" && dragState.current.nodeId) {
           const newX = dragState.current.startVal.x + gs.dx;
           const newY = dragState.current.startVal.y + gs.dy;
           localPosRef.current[dragState.current.nodeId] = { x: newX, y: newY };
           setLocalPos((prev) => ({ ...prev, [dragState.current.nodeId!]: { x: newX, y: newY } }));
-        } else {
+        } else if (dragState.current.type === "canvas") {
           const newX = dragState.current.startVal.x + gs.dx;
           const newY = dragState.current.startVal.y + gs.dy;
           canvasOffsetRef.current = { x: newX, y: newY };
@@ -307,6 +294,19 @@ export function HeadspaceBoard() {
       },
       onPanResponderRelease: () => {
         const { type, nodeId, moved } = dragState.current;
+        if (type === "resize" && nodeId) {
+          const size = localSizesRef.current[nodeId];
+          if (size) {
+            updateHeadspaceNodesRef.current(
+              headspaceNodesRef.current.map((n) =>
+                n.id === nodeId ? { ...n, customW: Math.round(size.w), customH: Math.round(size.h) } : n,
+              ),
+            );
+          }
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          dragState.current.moved = false;
+          return;
+        }
         if (!moved && type === "node" && nodeId) {
           handleNodeTapRef.current(nodeId);
         }
@@ -508,11 +508,11 @@ export function HeadspaceBoard() {
                     contentFit="cover"
                   />
                 )}
-                {/* Resize handle — only in pan mode when selected */}
+                {/* Resize handle — visual only; touch detection done in main panResponder */}
                 {isSelected && mode === "pan" && (
                   <View
                     style={[styles.resizeHandle, { backgroundColor: colors.card, borderColor: colors.primary }]}
-                    {...resizePanResponder.panHandlers}
+                    pointerEvents="none"
                   >
                     <Feather name="maximize-2" size={9} color={colors.primary} />
                   </View>
