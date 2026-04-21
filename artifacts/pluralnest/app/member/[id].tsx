@@ -319,38 +319,23 @@ export default function MemberProfileScreen() {
                 {(data.settings.customGlobalFields ?? []).map((gf, idx) => {
                   const fv = member.customFields.find((c) => c.fieldId === gf.id);
                   const rawValue = fv?.value ?? "";
-                  const hasAsset = rawValue.includes("(@");
-                  if (hasAsset) {
-                    return (
-                      <View
-                        key={gf.id}
-                        style={[
-                          styles.fieldRowStacked,
-                          idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
-                        ]}
-                      >
-                        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{gf.label}</Text>
-                        <View style={[styles.fieldHRule, { backgroundColor: colors.border }]} />
-                        <Markdown markdownit={mdParser} style={mdStyles} rules={mdRules}>
-                          {preprocessMarkdown(rawValue, data.assets)}
-                        </Markdown>
-                      </View>
-                    );
-                  }
                   return (
                     <View
                       key={gf.id}
                       style={[
-                        styles.fieldRow,
+                        styles.fieldRowStacked,
                         idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
                       ]}
                     >
                       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{gf.label}</Text>
-                      {/* Vertical divider */}
-                      <View style={[styles.fieldVDivider, { backgroundColor: colors.border }]} />
-                      <Text style={[styles.fieldValue, { color: rawValue ? colors.foreground : colors.mutedForeground }]}>
-                        {rawValue || "—"}
-                      </Text>
+                      <View style={[styles.fieldHRule, { backgroundColor: colors.border }]} />
+                      {rawValue ? (
+                        <Markdown markdownit={mdParser} style={mdStyles} rules={mdRules}>
+                          {preprocessMarkdown(rawValue, data.assets ?? [])}
+                        </Markdown>
+                      ) : (
+                        <Text style={[styles.fieldValue, { color: colors.mutedForeground }]}>—</Text>
+                      )}
                     </View>
                   );
                 })}
