@@ -529,27 +529,33 @@ export default function ChatScreen() {
                 },
               ]}
             >
-              {data.members
-                .filter((m) => !m.isArchived)
-                .map((m) => (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[
-                      styles.pickerItem,
-                      selectedMemberId === m.id && { backgroundColor: colors.secondary },
-                    ]}
-                    onPress={() => {
-                      setSelectedMemberId(m.id);
-                      setShowMemberPicker(false);
-                    }}
-                  >
-                    <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={28} />
-                    <Text style={[styles.pickerName, { color: colors.foreground }]}>{m.name}</Text>
-                    {selectedMemberId === m.id && (
-                      <Feather name="check" size={16} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: 280 }}
+              >
+                {data.members
+                  .filter((m) => !m.isArchived)
+                  .map((m) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[
+                        styles.pickerItem,
+                        selectedMemberId === m.id && { backgroundColor: colors.secondary },
+                      ]}
+                      onPress={() => {
+                        setSelectedMemberId(m.id);
+                        setShowMemberPicker(false);
+                      }}
+                    >
+                      <MemberAvatar name={m.name} color={m.color} profileImage={m.profileImage} size={28} />
+                      <Text style={[styles.pickerName, { color: colors.foreground }]}>{m.name}</Text>
+                      {selectedMemberId === m.id && (
+                        <Feather name="check" size={16} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
             </View>
           )}
         </>
