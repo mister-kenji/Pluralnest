@@ -48,6 +48,7 @@ export default function HeadspaceScreen() {
   const [newImage, setNewImage] = useState("");
   const [linkedMemberIds, setLinkedMemberIds] = useState<string[]>([]);
   const [view, setView] = useState<View>("list");
+  const [imgRatios, setImgRatios] = useState<Record<string, number>>({});
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const rootNodes = data.headspaceNodes.filter((n) => !n.parentId);
@@ -106,7 +107,17 @@ export default function HeadspaceScreen() {
         <View style={styles.cardInner}>
           {/* Image banner */}
           {node.imageUri && (
-            <Image source={{ uri: node.imageUri }} style={styles.cardImage} contentFit="cover" />
+            <Image
+              source={{ uri: node.imageUri }}
+              style={[styles.cardImage, { aspectRatio: imgRatios[node.imageUri] ?? 4 / 3 }]}
+              contentFit="cover"
+              onLoad={(e: any) => {
+                const { width, height } = e.source ?? {};
+                if (width && height) {
+                  setImgRatios((prev) => ({ ...prev, [node.imageUri!]: width / height }));
+                }
+              }}
+            />
           )}
 
           {/* Header: type badge + child count + chevron */}
@@ -299,7 +310,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 14, borderWidth: 1, flexDirection: "row" },
   accentStrip: { width: 5 },
   cardInner: { flex: 1, padding: 14 },
-  cardImage: { width: "100%", height: 130, borderRadius: 8, marginBottom: 10 },
+  cardImage: { width: "100%", borderRadius: 8, marginBottom: 10 },
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   cardHeaderRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   typeBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20 },

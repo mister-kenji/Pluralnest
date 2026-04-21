@@ -40,6 +40,11 @@ export default function HeadspaceDetailScreen() {
   const [newType, setNewType] = useState<NodeType>("place");
   const [newImage, setNewImage] = useState("");
   const [linkedMemberIds, setLinkedMemberIds] = useState<string[]>([]);
+  const [imgRatios, setImgRatios] = useState<Record<string, number>>({});
+
+  const setRatio = (uri: string, w: number, h: number) => {
+    if (w && h) setImgRatios((prev) => ({ ...prev, [uri]: w / h }));
+  };
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -132,7 +137,15 @@ export default function HeadspaceDetailScreen() {
         <View style={[styles.childAccent, { backgroundColor: cm.color }]} />
         <View style={styles.childInner}>
           {child.imageUri && (
-            <Image source={{ uri: child.imageUri }} style={styles.childImage} contentFit="cover" />
+            <Image
+              source={{ uri: child.imageUri }}
+              style={[styles.childImage, { aspectRatio: imgRatios[child.imageUri] ?? 4 / 3 }]}
+              contentFit="cover"
+              onLoad={(e: any) => {
+                const { width, height } = e.source ?? {};
+                setRatio(child.imageUri!, width, height);
+              }}
+            />
           )}
           <View style={styles.childHeader}>
             <View style={[styles.typeBadge, { backgroundColor: cm.color + "22" }]}>
@@ -196,7 +209,15 @@ export default function HeadspaceDetailScreen() {
           <View style={[styles.parentAccent, { backgroundColor: meta.color }]} />
           <View style={styles.parentInner}>
             {node.imageUri && (
-              <Image source={{ uri: node.imageUri }} style={styles.parentImage} contentFit="cover" />
+              <Image
+                source={{ uri: node.imageUri }}
+                style={[styles.parentImage, { aspectRatio: imgRatios[node.imageUri] ?? 4 / 3 }]}
+                contentFit="cover"
+                onLoad={(e: any) => {
+                  const { width, height } = e.source ?? {};
+                  setRatio(node.imageUri!, width, height);
+                }}
+              />
             )}
             <View style={[styles.typeBadge, { backgroundColor: meta.color + "22", alignSelf: "flex-start", marginBottom: 8 }]}>
               <Feather name={meta.icon as any} size={12} color={meta.color} />
@@ -334,7 +355,7 @@ const styles = StyleSheet.create({
   parentCard: { borderRadius: 14, borderWidth: 1.5, flexDirection: "row", marginBottom: 20 },
   parentAccent: { width: 6 },
   parentInner: { flex: 1, padding: 14 },
-  parentImage: { width: "100%", height: 160, borderRadius: 8, marginBottom: 10 },
+  parentImage: { width: "100%", borderRadius: 8, marginBottom: 10 },
   parentTitle: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 6 },
   parentDesc: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
@@ -350,7 +371,7 @@ const styles = StyleSheet.create({
   childCard: { borderRadius: 12, borderWidth: 1, flexDirection: "row" },
   childAccent: { width: 4 },
   childInner: { flex: 1, padding: 12 },
-  childImage: { width: "100%", height: 100, borderRadius: 6, marginBottom: 8 },
+  childImage: { width: "100%", borderRadius: 6, marginBottom: 8 },
   childHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   deleteBtn: { padding: 4 },
   childTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
